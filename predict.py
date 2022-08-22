@@ -1,6 +1,8 @@
-from torch import autocast
 import os
+from typing import Optional, List
+
 import torch
+from torch import autocast
 from diffusers import StableDiffusionPipeline, LMSDiscreteScheduler
 
 from cog import BasePredictor, Input, Path
@@ -12,9 +14,7 @@ class Predictor(BasePredictor):
         print("Loading pipeline...")
 
         lms = LMSDiscreteScheduler(
-            beta_start=0.00085,
-            beta_end=0.012,
-            beta_schedule="scaled_linear"
+            beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear"
         )
         self.pipe = StableDiffusionPipeline.from_pretrained(
             "CompVis/stable-diffusion-v1-4",
@@ -26,18 +26,25 @@ class Predictor(BasePredictor):
     def predict(
         self,
         prompt: str = Input(description="Input prompt"),
+        num_outputs: int = Input(
+            description="Number of images to output", choices=[1, 4, 16], default=4
+        ),
         num_inference_steps: int = Input(
             description="Number of denoising steps", ge=1, le=500, default=100
         ),
         guidance_scale: float = Input(
             description="Scale for classifier-free guidance", ge=1, le=20, default=7.5
         ),
-        seed: int = Input(description="Random seed. Random if less than 0", default=-1),
-    ) -> Path:
+        seed: int = Input(
+            description="Random seed. Leave blank to randomize the seed", default=None
+        ),
+    ) -> List[Path]:
         """Run a single prediction on the model"""
-        if seed < 0:
+        if seed is None:
             seed = int.from_bytes(os.urandom(2), "big")
+        print(f"Using seed: {seed}")
 
+        prompt = [prompt] * num_outputs
         generator = torch.Generator("cuda").manual_seed(seed)
         output = self.pipe(
             prompt,
@@ -45,11 +52,13 @@ class Predictor(BasePredictor):
             generator=generator,
             num_inference_steps=num_inference_steps,
         )
-
-        if output["nsfw_content_detected"][0]:
+        if any(output["nsfw_content_detected"]):
             raise Exception("NSFW content detected, please try a different prompt")
 
-        output_path = "/tmp/out.png"
-        output["sample"][0].save(output_path)
+        output_paths = []
+        for i, sample in enumerate(output["sample"]):
+            output_path = f"/tmp/out-{i}.png"
+            sample.save(output_path)
+            output_paths.append(Path(output_path))
 
-        return Path(output_path)
+        return output_paths
