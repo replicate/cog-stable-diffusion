@@ -1,0 +1,14 @@
+#!/usr/bin/env python
+
+from diffusers import StableDiffusionPipeline
+import os
+import sys
+
+os.makedirs("diffusers-cache", exist_ok=True)
+
+
+pipe = StableDiffusionPipeline.from_pretrained(
+    "CompVis/stable-diffusion-v1-4",
+    cache_dir="diffusers-cache",
+    use_auth_token=sys.argv[1],
+)
