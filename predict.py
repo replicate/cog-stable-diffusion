@@ -27,7 +27,7 @@ class Predictor(BasePredictor):
         self,
         prompt: str = Input(description="Input prompt"),
         num_outputs: int = Input(
-            description="Number of images to output", choices=[1, 4, 16], default=4
+            description="Number of images to output", choices=[1, 4], default=1
         ),
         num_inference_steps: int = Input(
             description="Number of denoising steps", ge=1, le=500, default=100
