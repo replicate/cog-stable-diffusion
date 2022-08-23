@@ -21,6 +21,8 @@ class Predictor(BasePredictor):
             scheduler=lms,
             cache_dir="diffusers-cache",
             local_files_only=True,
+            revision="fp16",
+            torch_dtype=torch.float16,
         ).to("cuda")
 
     def predict(
