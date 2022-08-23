@@ -38,10 +38,14 @@ class Predictor(BasePredictor):
             description="Scale for classifier-free guidance", ge=1, le=20, default=7.5
         ),
         width: int = Input(
-            description="Width of output image", ge=128, le=1024, default=512
+            description="Width of output image",
+            choices=[128, 256, 512, 768, 1024],
+            default=512,
         ),
         height: int = Input(
-            description="Height of output image", ge=128, le=768, default=512
+            description="Height of output image",
+            choices=[128, 256, 512, 768],
+            default=512,
         ),
         seed: int = Input(
             description="Random seed. Leave blank to randomize the seed", default=None
