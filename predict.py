@@ -21,6 +21,8 @@ class Predictor(BasePredictor):
             scheduler=lms,
             cache_dir="diffusers-cache",
             local_files_only=True,
+            revision="fp16",
+            torch_dtype=torch.float16,
         ).to("cuda")
 
     def predict(
@@ -35,6 +37,12 @@ class Predictor(BasePredictor):
         guidance_scale: float = Input(
             description="Scale for classifier-free guidance", ge=1, le=20, default=7.5
         ),
+        width: int = Input(
+            description="Width of output image", ge=128, le=1024, default=512
+        ),
+        height: int = Input(
+            description="Height of output image", ge=128, le=768, default=512
+        ),
         seed: int = Input(
             description="Random seed. Leave blank to randomize the seed", default=None
         ),
@@ -46,14 +54,18 @@ class Predictor(BasePredictor):
 
         prompt = [prompt] * num_outputs
         generator = torch.Generator("cuda").manual_seed(seed)
-        output = self.pipe(
-            prompt,
-            guidance_scale=guidance_scale,
-            generator=generator,
-            num_inference_steps=num_inference_steps,
-        )
-        if any(output["nsfw_content_detected"]):
-            raise Exception("NSFW content detected, please try a different prompt")
+
+        with autocast("cuda"):
+            output = self.pipe(
+                prompt,
+                width=width,
+                height=height,
+                guidance_scale=guidance_scale,
+                generator=generator,
+                num_inference_steps=num_inference_steps,
+            )
+            if any(output["nsfw_content_detected"]):
+                raise Exception("NSFW content detected, please try a different prompt")
 
         output_paths = []
         for i, sample in enumerate(output["sample"]):
