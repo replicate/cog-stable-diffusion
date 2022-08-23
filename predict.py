@@ -1,31 +1,44 @@
 import os
-from typing import Optional, List
+from typing import List
 
 import torch
-from torch import autocast
-from diffusers import StableDiffusionPipeline, LMSDiscreteScheduler
-
 from cog import BasePredictor, Input, Path
+from diffusers import PNDMScheduler
+from PIL import Image
+
+from image_to_image import StableDiffusionImg2ImgPipeline, preprocess
 
 
 class Predictor(BasePredictor):
     def setup(self):
         """Load the model into memory to make running multiple predictions efficient"""
         print("Loading pipeline...")
+        self.model_cache = "model_cache"
 
-        lms = LMSDiscreteScheduler(
+        scheduler = PNDMScheduler(
             beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear"
         )
-        self.pipe = StableDiffusionPipeline.from_pretrained(
+        self.pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
             "CompVis/stable-diffusion-v1-4",
-            scheduler=lms,
             cache_dir="diffusers-cache",
+            scheduler=scheduler,
+            revision="fp16",
+            torch_dtype=torch.float16,
             local_files_only=True,
         ).to("cuda")
 
+    @torch.inference_mode()
+    @torch.cuda.amp.autocast()
     def predict(
         self,
         prompt: str = Input(description="Input prompt"),
+        init_image: Path = Input(
+            description="Inital image to generate variations of.", default=None
+        ),
+        strength: float = Input(
+            description="Strength for noising/unnoising. 1.0 corresponds to full destruction of information in init image.",
+            default=0.8,
+        ),
         num_outputs: int = Input(
             description="Number of images to output", choices=[1, 4, 16], default=4
         ),
@@ -44,13 +57,17 @@ class Predictor(BasePredictor):
             seed = int.from_bytes(os.urandom(2), "big")
         print(f"Using seed: {seed}")
 
-        prompt = [prompt] * num_outputs
+        init_image = Image.open(init_image).convert("RGB")
+        init_image = init_image.resize((512, 512))
+        init_image = preprocess(init_image)
         generator = torch.Generator("cuda").manual_seed(seed)
         output = self.pipe(
-            prompt,
+            init_image=init_image,
+            prompt=[prompt] * num_outputs if prompt is not None else None,
             guidance_scale=guidance_scale,
             generator=generator,
             num_inference_steps=num_inference_steps,
+            strength=strength,
         )
         if any(output["nsfw_content_detected"]):
             raise Exception("NSFW content detected, please try a different prompt")
