@@ -68,8 +68,7 @@ class Predictor(BasePredictor):
                 generator=generator,
                 num_inference_steps=num_inference_steps,
             )
-            if any(output["nsfw_content_detected"]):
-                raise Exception("NSFW content detected, please try a different prompt")
+           
 
         output_paths = []
         for i, sample in enumerate(output["sample"]):
