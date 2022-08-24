@@ -36,6 +36,8 @@ class Predictor(BasePredictor):
             revision="fp16",
             torch_dtype=torch.float16,
             local_files_only=True,
+            revision="fp16",
+            torch_dtype=torch.float16,
         ).to("cuda")
 
     @torch.inference_mode()
@@ -63,13 +65,23 @@ class Predictor(BasePredictor):
             choices=[256, 384, 512, 640, 768, 896, 1024],
         ),
         num_outputs: int = Input(
-            description="Number of images to output", choices=[1, 4, 16], default=1
+            description="Number of images to output", choices=[1, 4], default=1
         ),
         num_inference_steps: int = Input(
             description="Number of denoising steps", ge=1, le=500, default=100
         ),
         guidance_scale: float = Input(
             description="Scale for classifier-free guidance", ge=1, le=20, default=7.5
+        ),
+        width: int = Input(
+            description="Width of output image",
+            choices=[128, 256, 512, 768, 1024],
+            default=512,
+        ),
+        height: int = Input(
+            description="Height of output image",
+            choices=[128, 256, 512, 768],
+            default=512,
         ),
         seed: int = Input(
             description="Random seed. Leave blank to randomize the seed", default=None
@@ -109,6 +121,7 @@ class Predictor(BasePredictor):
             generator=generator,
             output_type="pil",
         )
+
 
         output_paths = []
         for i, sample in enumerate(output["sample"]):
