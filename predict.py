@@ -1,43 +1,36 @@
 import os
-from typing import List
+from typing import Optional, List
 
-import numpy as np
 import torch
-from cog import BasePredictor, Input, Path
+from torch import autocast
 from diffusers import PNDMScheduler
 from PIL import Image
+from cog import BasePredictor, Input, Path
 
-from image_to_image import StableDiffusionImg2ImgPipeline
+from image_to_image import (
+    StableDiffusionImg2ImgPipeline,
+    preprocess_init_image,
+    preprocess_mask,
+)
+
 
 MODEL_CACHE = "diffusers-cache"
-
-def preprocess(image):
-    w, h = image.size
-    w, h = map(lambda x: x - x % 32, (w, h))  # resize to integer multiple of 32
-    image = image.resize((w, h), resample=Image.LANCZOS)
-    image = np.array(image).astype(np.float32) / 255.0
-    image = image[None].transpose(0, 3, 1, 2)
-    image = torch.from_numpy(image)
-    return 2.0 * image - 1.0
 
 
 class Predictor(BasePredictor):
     def setup(self):
         """Load the model into memory to make running multiple predictions efficient"""
         print("Loading pipeline...")
-        self.log_dir = Path("/tmp/cog-stable-diffusion")
-        self.log_dir.mkdir(exist_ok=True)
-
-        scheduler = PNDMScheduler()
+        scheduler = PNDMScheduler(
+            beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear"
+        )
         self.pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
             "CompVis/stable-diffusion-v1-4",
-            cache_dir=MODEL_CACHE,
             scheduler=scheduler,
             revision="fp16",
             torch_dtype=torch.float16,
+            cache_dir=MODEL_CACHE,
             local_files_only=True,
-            revision="fp16",
-            torch_dtype=torch.float16,
         ).to("cuda")
 
     @torch.inference_mode()
@@ -45,34 +38,6 @@ class Predictor(BasePredictor):
     def predict(
         self,
         prompt: str = Input(description="Input prompt", default=""),
-        init_image: Path = Input(
-            description="Inital image to generate variations of.", default=None
-        ),
-        strength: float = Input(
-            description="Strength for noising/unnoising. 1.0 corresponds to full destruction of information in init image.",
-            default=0.8,
-            ge=0.0,
-            le=1.0,
-        ),
-        width: int = Input(
-            description="Width of output image",
-            default=512,
-            choices=[256, 384, 512, 640, 768, 896, 1024],
-        ),
-        height: int = Input(
-            description="Height of output image",
-            default=512,
-            choices=[256, 384, 512, 640, 768, 896, 1024],
-        ),
-        num_outputs: int = Input(
-            description="Number of images to output", choices=[1, 4], default=1
-        ),
-        num_inference_steps: int = Input(
-            description="Number of denoising steps", ge=1, le=500, default=100
-        ),
-        guidance_scale: float = Input(
-            description="Scale for classifier-free guidance", ge=1, le=20, default=7.5
-        ),
         width: int = Input(
             description="Width of output image",
             choices=[128, 256, 512, 768, 1024],
@@ -83,6 +48,26 @@ class Predictor(BasePredictor):
             choices=[128, 256, 512, 768],
             default=512,
         ),
+        init_image: Path = Input(
+            description="Inital image to generate variations of", default=None
+        ),
+        mask: Path = Input(
+            description="Black and white image to use as mask for inpainting over init_image. Black pixels are inpainted and white pixels are preserved",
+            default=None,
+        ),
+        prompt_strength: float = Input(
+            description="Prompt strength when using init image. 1.0 corresponds to full destruction of information in init image",
+            default=0.8,
+        ),
+        num_outputs: int = Input(
+            description="Number of images to output", choices=[1, 4], default=1
+        ),
+        num_inference_steps: int = Input(
+            description="Number of denoising steps", ge=1, le=500, default=50
+        ),
+        guidance_scale: float = Input(
+            description="Scale for classifier-free guidance", ge=1, le=20, default=7.5
+        ),
         seed: int = Input(
             description="Random seed. Leave blank to randomize the seed", default=None
         ),
@@ -90,42 +75,33 @@ class Predictor(BasePredictor):
         """Run a single prediction on the model"""
         if seed is None:
             seed = int.from_bytes(os.urandom(2), "big")
-        generator = torch.Generator("cuda").manual_seed(seed)
         print(f"Using seed: {seed}")
 
-        if init_image is not None:
+        if init_image:
             init_image = Image.open(init_image).convert("RGB")
-            init_image = preprocess(init_image)
-            width, height = init_image.shape[2], init_image.shape[3]
-        else:
-            init_image = torch.randn(
-                1,
-                3,
-                height,
-                width,
-                dtype=torch.float16,
-                generator=generator,
-                device="cuda",
-            )
-            strength = 1.0  # disable noising
+            init_image = preprocess_init_image(init_image, width, height).to("cuda")
+        if mask:
+            mask = Image.open(mask).convert("RGB")
+            mask = preprocess_mask(mask, width, height).to("cuda")
 
-        print(f"Using resolution of {width}x{height} for generation dimensions.")
-        prompt = [prompt] * num_outputs
-
+        generator = torch.Generator("cuda").manual_seed(seed)
         output = self.pipe(
-            prompt=prompt,
+            prompt=[prompt] * num_outputs if prompt is not None else None,
             init_image=init_image,
-            strength=strength,
-            num_inference_steps=num_inference_steps,
+            mask=mask,
+            width=width,
+            height=height,
+            prompt_strength=prompt_strength,
             guidance_scale=guidance_scale,
             generator=generator,
-            output_type="pil",
+            num_inference_steps=num_inference_steps,
         )
-
+        if any(output["nsfw_content_detected"]):
+            raise Exception("NSFW content detected, please try a different prompt")
 
         output_paths = []
         for i, sample in enumerate(output["sample"]):
-            output_path = self.log_dir / f"out-{i:03d}.png"
+            output_path = f"/tmp/out-{i}.png"
             sample.save(output_path)
             output_paths.append(Path(output_path))
 
