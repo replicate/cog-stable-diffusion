@@ -52,7 +52,7 @@ class Predictor(BasePredictor):
             description="Inital image to generate variations of", default=None
         ),
         mask: Path = Input(
-            description="Black and white image to use as mask for inpainting over init_image. Black pixels are inpainted and white pixels are preserved",
+            description="Black and white image to use as mask for inpainting over init_image. Black pixels are inpainted and white pixels are preserved. Experimental feature, tends to work better with prompt strength of 0.5-0.7",
             default=None,
         ),
         prompt_strength: float = Input(
