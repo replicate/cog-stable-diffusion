@@ -3,7 +3,7 @@ from typing import Optional, List
 
 import torch
 from torch import autocast
-from diffusers import PNDMScheduler
+from diffusers import PNDMScheduler, LMSDiscreteScheduler
 from PIL import Image
 from cog import BasePredictor, Input, Path
 
@@ -49,7 +49,7 @@ class Predictor(BasePredictor):
             default=512,
         ),
         init_image: Path = Input(
-            description="Inital image to generate variations of", default=None
+            description="Inital image to generate variations of. Will be resized to the specified width and height", default=None
         ),
         mask: Path = Input(
             description="Black and white image to use as mask for inpainting over init_image. Black pixels are inpainted and white pixels are preserved. Experimental feature, tends to work better with prompt strength of 0.5-0.7",
@@ -80,6 +80,19 @@ class Predictor(BasePredictor):
         if init_image:
             init_image = Image.open(init_image).convert("RGB")
             init_image = preprocess_init_image(init_image, width, height).to("cuda")
+
+            # use PNDM with init images
+            scheduler = PNDMScheduler(
+                beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear"
+            )
+        else:
+            # use LMS without init images
+            scheduler = LMSDiscreteScheduler(
+                beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear"
+            )
+
+        self.pipe.scheduler = scheduler
+
         if mask:
             mask = Image.open(mask).convert("RGB")
             mask = preprocess_mask(mask, width, height).to("cuda")

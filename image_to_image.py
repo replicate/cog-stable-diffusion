@@ -10,6 +10,7 @@ from diffusers import (
     DDIMScheduler,
     DiffusionPipeline,
     PNDMScheduler,
+    LMSDiscreteScheduler,
     UNet2DConditionModel,
 )
 from diffusers.pipelines.stable_diffusion import StableDiffusionSafetyChecker
@@ -46,7 +47,7 @@ class StableDiffusionImg2ImgPipeline(DiffusionPipeline):
         text_encoder: CLIPTextModel,
         tokenizer: CLIPTokenizer,
         unet: UNet2DConditionModel,
-        scheduler: Union[DDIMScheduler, PNDMScheduler],
+        scheduler: Union[DDIMScheduler, PNDMScheduler, LMSDiscreteScheduler],
         safety_checker: StableDiffusionSafetyChecker,
         feature_extractor: CLIPFeatureExtractor,
     ):
@@ -145,12 +146,20 @@ class StableDiffusionImg2ImgPipeline(DiffusionPipeline):
 
         mask_noise = torch.randn(latents.shape, generator=generator, device=self.device)
 
+        # if we use LMSDiscreteScheduler, let's make sure latents are mulitplied by sigmas
+        if isinstance(self.scheduler, LMSDiscreteScheduler):
+            latents = latents * self.scheduler.sigmas[0]
+
         t_start = max(num_inference_steps - init_timestep + offset, 0)
         for i, t in tqdm(enumerate(self.scheduler.timesteps[t_start:])):
             # expand the latents if we are doing classifier free guidance
             latent_model_input = (
                 torch.cat([latents] * 2) if do_classifier_free_guidance else latents
             )
+
+            if isinstance(self.scheduler, LMSDiscreteScheduler):
+                sigma = self.scheduler.sigmas[i]
+                latent_model_input = latent_model_input / ((sigma ** 2 + 1) ** 0.5)
 
             # predict the noise residual
             noise_pred = self.unet(
@@ -165,9 +174,14 @@ class StableDiffusionImg2ImgPipeline(DiffusionPipeline):
                 )
 
             # compute the previous noisy sample x_t -> x_t-1
-            latents = self.scheduler.step(noise_pred, t, latents, **extra_step_kwargs)[
-                "prev_sample"
-            ]
+            if isinstance(self.scheduler, LMSDiscreteScheduler):
+                latents = self.scheduler.step(noise_pred, i, latents, **extra_step_kwargs)[
+                    "prev_sample"
+                ]
+            else:
+                latents = self.scheduler.step(noise_pred, t, latents, **extra_step_kwargs)[
+                    "prev_sample"
+                ]
 
             # replace the unmasked part with original latents, with added noise
             if mask is not None:
