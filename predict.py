@@ -39,17 +39,18 @@ class Predictor(BasePredictor):
         self,
         prompt: str = Input(description="Input prompt", default=""),
         width: int = Input(
-            description="Width of output image",
+            description="Width of output image. Maximum size is 1024x768 or 768x1024 because of memory limits",
             choices=[128, 256, 512, 768, 1024],
             default=512,
         ),
         height: int = Input(
-            description="Height of output image",
-            choices=[128, 256, 512, 768],
+            description="Height of output image. Maximum size is 1024x768 or 768x1024 because of memory limits",
+            choices=[128, 256, 512, 768, 1024],
             default=512,
         ),
         init_image: Path = Input(
-            description="Inital image to generate variations of. Will be resized to the specified width and height", default=None
+            description="Inital image to generate variations of. Will be resized to the specified width and height",
+            default=None,
         ),
         mask: Path = Input(
             description="Black and white image to use as mask for inpainting over init_image. Black pixels are inpainted and white pixels are preserved. Experimental feature, tends to work better with prompt strength of 0.5-0.7",
@@ -76,6 +77,11 @@ class Predictor(BasePredictor):
         if seed is None:
             seed = int.from_bytes(os.urandom(2), "big")
         print(f"Using seed: {seed}")
+
+        if width == height == 1024:
+            raise ValueError(
+                "Maximum size is 1024x768 or 768x1024 pixels, because of memory limits. Please select a lower width or height."
+            )
 
         if init_image:
             init_image = Image.open(init_image).convert("RGB")
