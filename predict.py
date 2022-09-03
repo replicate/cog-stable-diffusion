@@ -4,7 +4,7 @@ from typing import Optional, List
 import torch
 from torch import autocast
 from diffusers import PNDMScheduler, LMSDiscreteScheduler
-from PIL import Image
+from PIL import Image, ImageFilter
 from cog import BasePredictor, Input, Path
 
 from image_to_image import (
@@ -115,8 +115,9 @@ class Predictor(BasePredictor):
             generator=generator,
             num_inference_steps=num_inference_steps,
         )
-        if any(output["nsfw_content_detected"]):
-            raise Exception("NSFW content detected, please try a different prompt")
+        for i in range(len(output["nsfw_content_detected"])):
+            if output["nsfw_content_detected"][i]:
+                output["sample"][i] = output["sample"][i].filter(ImageFilter.GaussianBlur(50))
 
         output_paths = []
         for i, sample in enumerate(output["sample"]):
