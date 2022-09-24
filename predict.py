@@ -104,13 +104,14 @@ class Predictor(BasePredictor):
             mask = preprocess_mask(mask, width, height).to("cuda")
 
         generator = torch.Generator("cuda").manual_seed(seed)
+#fix for https://github.com/replicate/cog-stable-diffusion/issues/21
         output = self.pipe(
             prompt=[prompt] * num_outputs if prompt is not None else None,
             init_image=init_image,
             mask=mask,
             width=width,
             height=height,
-            prompt_strength=prompt_strength,
+            prompt_strength=1-prompt_strength,
             guidance_scale=guidance_scale,
             generator=generator,
             num_inference_steps=num_inference_steps,
