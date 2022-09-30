@@ -1,8 +1,7 @@
 import os
-from typing import Optional, List
+from typing import List
 
 import torch
-from torch import autocast
 from diffusers import PNDMScheduler, LMSDiscreteScheduler
 from PIL import Image
 from cog import BasePredictor, Input, Path
@@ -61,7 +60,9 @@ class Predictor(BasePredictor):
             default=0.8,
         ),
         num_outputs: int = Input(
-            description="Number of images to output", choices=[1, 4], default=1
+            description="Number of images to output. NSFW filter in enabled, so you may get fewer outputs than requested if flagged",
+            choices=[1, 4],
+            default=1,
         ),
         num_inference_steps: int = Input(
             description="Number of denoising steps", ge=1, le=500, default=50
@@ -115,11 +116,17 @@ class Predictor(BasePredictor):
             generator=generator,
             num_inference_steps=num_inference_steps,
         )
-        if any(output["nsfw_content_detected"]):
-            raise Exception("NSFW content detected, please try a different prompt")
 
+        samples = [output["sample"][i] for i, nsfw_flag in enumerate(output["nsfw_content_detected"]) if not nsfw_flag]
+
+        if len(samples) == 0:
+            raise Exception(f"NSFW content detected in all outputs, please try a different prompt")
+
+        print(
+            f"NSFW content detected in {num_outputs - len(samples)} outputs, showing the rest {len(samples)} images..."
+        )
         output_paths = []
-        for i, sample in enumerate(output["sample"]):
+        for i, sample in enumerate(samples):
             output_path = f"/tmp/out-{i}.png"
             sample.save(output_path)
             output_paths.append(Path(output_path))
