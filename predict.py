@@ -120,7 +120,7 @@ class Predictor(BasePredictor):
         samples = [output["sample"][i] for i, nsfw_flag in enumerate(output["nsfw_content_detected"]) if not nsfw_flag]
 
         if len(samples) == 0:
-            raise Exception(f"NSFW content detected in all outputs, please try a different prompt")
+            raise Exception(f"NSFW content detected. Try running it again, or try a different prompt.")
 
         print(
             f"NSFW content detected in {num_outputs - len(samples)} outputs, showing the rest {len(samples)} images..."
