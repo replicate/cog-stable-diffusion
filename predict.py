@@ -26,8 +26,6 @@ class Predictor(BasePredictor):
         self.pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
             "CompVis/stable-diffusion-v1-4",
             scheduler=scheduler,
-            revision="fp16",
-            torch_dtype=torch.float16,
             cache_dir=MODEL_CACHE,
             local_files_only=True,
         ).to("cuda")
@@ -39,12 +37,12 @@ class Predictor(BasePredictor):
         prompt: str = Input(description="Input prompt", default=""),
         width: int = Input(
             description="Width of output image. Maximum size is 1024x768 or 768x1024 because of memory limits",
-            choices=[128, 256, 512, 768, 1024],
+            choices=[128, 256, 512, 768, 896, 1024],
             default=512,
         ),
         height: int = Input(
             description="Height of output image. Maximum size is 1024x768 or 768x1024 because of memory limits",
-            choices=[128, 256, 512, 768, 1024],
+            choices=[128, 256, 512, 768, 896, 1024],
             default=512,
         ),
         init_image: Path = Input(
