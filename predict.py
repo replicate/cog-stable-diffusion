@@ -2,7 +2,7 @@ import os
 from typing import List
 
 import torch
-from diffusers import PNDMScheduler, LMSDiscreteScheduler
+from diffusers import PNDMScheduler, LMSDiscreteScheduler, DDIMScheduler, DDPMScheduler
 from PIL import Image
 from cog import BasePredictor, Input, Path
 
@@ -20,12 +20,9 @@ class Predictor(BasePredictor):
     def setup(self):
         """Load the model into memory to make running multiple predictions efficient"""
         print("Loading pipeline...")
-        scheduler = PNDMScheduler(
-            beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear"
-        )
+
         self.pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
             "CompVis/stable-diffusion-v1-4",
-            scheduler=scheduler,
             cache_dir=MODEL_CACHE,
             local_files_only=True,
         ).to("cuda")
@@ -68,6 +65,11 @@ class Predictor(BasePredictor):
         guidance_scale: float = Input(
             description="Scale for classifier-free guidance", ge=1, le=20, default=7.5
         ),
+        scheduler: str = Input(
+            default="PNDM",
+            choices=["DDIM", "K-LMS", "PNDM", "DDPM"],
+            description="Choose a scheduler",
+        ),
         seed: int = Input(
             description="Random seed. Leave blank to randomize the seed", default=None
         ),
@@ -86,17 +88,7 @@ class Predictor(BasePredictor):
             init_image = Image.open(init_image).convert("RGB")
             init_image = preprocess_init_image(init_image, width, height).to("cuda")
 
-            # use PNDM with init images
-            scheduler = PNDMScheduler(
-                beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear"
-            )
-        else:
-            # use LMS without init images
-            scheduler = LMSDiscreteScheduler(
-                beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear"
-            )
-
-        self.pipe.scheduler = scheduler
+        self.pipe.scheduler = make_scheduler(scheduler)
 
         if mask:
             mask = Image.open(mask).convert("RGB")
@@ -115,10 +107,16 @@ class Predictor(BasePredictor):
             num_inference_steps=num_inference_steps,
         )
 
-        samples = [output["sample"][i] for i, nsfw_flag in enumerate(output["nsfw_content_detected"]) if not nsfw_flag]
+        samples = [
+            output["sample"][i]
+            for i, nsfw_flag in enumerate(output["nsfw_content_detected"])
+            if not nsfw_flag
+        ]
 
         if len(samples) == 0:
-            raise Exception(f"NSFW content detected. Try running it again, or try a different prompt.")
+            raise Exception(
+                f"NSFW content detected. Try running it again, or try a different prompt."
+            )
 
         print(
             f"NSFW content detected in {num_outputs - len(samples)} outputs, showing the rest {len(samples)} images..."
@@ -130,3 +128,24 @@ class Predictor(BasePredictor):
             output_paths.append(Path(output_path))
 
         return output_paths
+
+
+def make_scheduler(name):
+    return {
+        "PNDM": PNDMScheduler(
+            beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear"
+        ),
+        "K-LMS": LMSDiscreteScheduler(
+            beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear"
+        ),
+        "DDIM": DDIMScheduler(
+            beta_start=0.00085,
+            beta_end=0.012,
+            beta_schedule="scaled_linear",
+            clip_sample=False,
+            set_alpha_to_one=False,
+        ),
+        "DDPM": DDPMScheduler(
+            beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear"
+        ),
+    }[name]
