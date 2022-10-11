@@ -1,9 +1,8 @@
 import os
-from typing import Optional, List
+from typing import List
 
 import torch
-from torch import autocast
-from diffusers import PNDMScheduler, LMSDiscreteScheduler
+from diffusers import PNDMScheduler, LMSDiscreteScheduler, DDIMScheduler, DDPMScheduler
 from PIL import Image
 from cog import BasePredictor, Input, Path
 
@@ -21,23 +20,42 @@ class Predictor(BasePredictor):
     def setup(self):
         """Load the model into memory to make running multiple predictions efficient"""
         print("Loading pipeline...")
-        scheduler = PNDMScheduler(
-            beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear"
-        )
+
         self.pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
             "CompVis/stable-diffusion-v1-4",
-            scheduler=scheduler,
-            revision="fp16",
-            torch_dtype=torch.float16,
             cache_dir=MODEL_CACHE,
             local_files_only=True,
         ).to("cuda")
+
+        self.schedulers = {
+            "pndm": PNDMScheduler(
+                beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear"
+            ),
+            "klms": LMSDiscreteScheduler(
+                beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear"
+            ),
+            "ddim": DDIMScheduler(
+                beta_start=0.00085,
+                beta_end=0.012,
+                beta_schedule="scaled_linear",
+                clip_sample=False,
+                set_alpha_to_one=False,
+            ),
+            "ddpm": DDPMScheduler(
+                beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear"
+            ),
+        }
 
     @torch.inference_mode()
     @torch.cuda.amp.autocast()
     def predict(
         self,
         prompt: str = Input(description="Input prompt", default=""),
+        scheduler: str = Input(
+            default="pndm",
+            choices=["ddim", "klms", "pndm", "ddpm"],
+            description="Choose a scheduer",
+        ),
         width: int = Input(
             description="Width of output image. Maximum size is 1024x768 or 768x1024 because of memory limits",
             choices=[128, 256, 512, 768, 1024],
@@ -87,17 +105,7 @@ class Predictor(BasePredictor):
             init_image = Image.open(init_image).convert("RGB")
             init_image = preprocess_init_image(init_image, width, height).to("cuda")
 
-            # use PNDM with init images
-            scheduler = PNDMScheduler(
-                beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear"
-            )
-        else:
-            # use LMS without init images
-            scheduler = LMSDiscreteScheduler(
-                beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear"
-            )
-
-        self.pipe.scheduler = scheduler
+        self.pipe.scheduler = self.schedulers[scheduler]
 
         if mask:
             mask = Image.open(mask).convert("RGB")
