@@ -2,7 +2,7 @@ import os
 from typing import List
 
 import torch
-from diffusers import PNDMScheduler, LMSDiscreteScheduler, DDIMScheduler, DDPMScheduler
+from diffusers import PNDMScheduler, LMSDiscreteScheduler, DDIMScheduler
 from PIL import Image
 from cog import BasePredictor, Input, Path
 
@@ -34,13 +34,6 @@ class Predictor(BasePredictor):
             "klms": LMSDiscreteScheduler(
                 beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear"
             ),
-            "ddim": DDIMScheduler(
-                beta_start=0.00085,
-                beta_end=0.012,
-                beta_schedule="scaled_linear",
-                clip_sample=False,
-                set_alpha_to_one=False,
-            ),
             "ddpm": DDPMScheduler(
                 beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear"
             ),
@@ -53,7 +46,7 @@ class Predictor(BasePredictor):
         prompt: str = Input(description="Input prompt", default=""),
         scheduler: str = Input(
             default="pndm",
-            choices=["ddim", "klms", "pndm", "ddpm"],
+            choices=["ddim", "klms", "pndm"],
             description="Choose a scheduer",
         ),
         width: int = Input(
