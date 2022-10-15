@@ -12,7 +12,5 @@ os.makedirs("diffusers-cache", exist_ok=True)
 pipe = StableDiffusionPipeline.from_pretrained(
     "CompVis/stable-diffusion-v1-4",
     cache_dir="diffusers-cache",
-    revision="fp16",
-    torch_dtype=torch.float16,
     use_auth_token=sys.argv[1],
 )

@@ -1,8 +1,7 @@
 import os
-from typing import Optional, List
+from typing import List
 
 import torch
-from torch import autocast
 from diffusers import PNDMScheduler, LMSDiscreteScheduler
 from PIL import Image
 from cog import BasePredictor, Input, Path
@@ -27,8 +26,6 @@ class Predictor(BasePredictor):
         self.pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
             "CompVis/stable-diffusion-v1-4",
             scheduler=scheduler,
-            revision="fp16",
-            torch_dtype=torch.float16,
             cache_dir=MODEL_CACHE,
             local_files_only=True,
         ).to("cuda")
@@ -40,12 +37,12 @@ class Predictor(BasePredictor):
         prompt: str = Input(description="Input prompt", default=""),
         width: int = Input(
             description="Width of output image. Maximum size is 1024x768 or 768x1024 because of memory limits",
-            choices=[128, 256, 512, 768, 1024],
+            choices=[128, 256, 512, 768, 896, 1024],
             default=512,
         ),
         height: int = Input(
             description="Height of output image. Maximum size is 1024x768 or 768x1024 because of memory limits",
-            choices=[128, 256, 512, 768, 1024],
+            choices=[128, 256, 512, 768, 896, 1024],
             default=512,
         ),
         init_image: Path = Input(
@@ -61,7 +58,9 @@ class Predictor(BasePredictor):
             default=0.8,
         ),
         num_outputs: int = Input(
-            description="Number of images to output", choices=[1, 4], default=1
+            description="Number of images to output. NSFW filter in enabled, so you may get fewer outputs than requested if flagged",
+            choices=[1, 4],
+            default=1,
         ),
         num_inference_steps: int = Input(
             description="Number of denoising steps", ge=1, le=500, default=50
@@ -115,11 +114,17 @@ class Predictor(BasePredictor):
             generator=generator,
             num_inference_steps=num_inference_steps,
         )
-        if any(output["nsfw_content_detected"]):
-            raise Exception("NSFW content detected, please try a different prompt")
 
+        samples = [output["sample"][i] for i, nsfw_flag in enumerate(output["nsfw_content_detected"]) if not nsfw_flag]
+
+        if len(samples) == 0:
+            raise Exception(f"NSFW content detected. Try running it again, or try a different prompt.")
+
+        print(
+            f"NSFW content detected in {num_outputs - len(samples)} outputs, showing the rest {len(samples)} images..."
+        )
         output_paths = []
-        for i, sample in enumerate(output["sample"]):
+        for i, sample in enumerate(samples):
             output_path = f"/tmp/out-{i}.png"
             sample.save(output_path)
             output_paths.append(Path(output_path))
