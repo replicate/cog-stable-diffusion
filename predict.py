@@ -66,9 +66,9 @@ class Predictor(BasePredictor):
             description="Scale for classifier-free guidance", ge=1, le=20, default=7.5
         ),
         scheduler: str = Input(
-            default="PNDM",
+            default="K-LMS",
             choices=["DDIM", "K-LMS", "PNDM", "DDPM"],
-            description="Choose a scheduler",
+            description="Choose a scheduler. If you use an init image, PNDM will be used",
         ),
         seed: int = Input(
             description="Random seed. Leave blank to randomize the seed", default=None
@@ -87,6 +87,9 @@ class Predictor(BasePredictor):
         if init_image:
             init_image = Image.open(init_image).convert("RGB")
             init_image = preprocess_init_image(init_image, width, height).to("cuda")
+            if scheduler != "PNDM":
+                print("Using PNDM scheduler since an init image was provided")
+                scheduler = "PNDM"
 
         self.pipe.scheduler = make_scheduler(scheduler)
 
