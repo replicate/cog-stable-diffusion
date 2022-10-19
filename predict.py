@@ -118,9 +118,10 @@ class Predictor(BasePredictor):
                 f"NSFW content detected. Try running it again, or try a different prompt."
             )
 
-        print(
-            f"NSFW content detected in {num_outputs - len(samples)} outputs, showing the rest {len(samples)} images..."
-        )
+        if num_outputs > len(samples):
+            print(
+                f"NSFW content detected in {num_outputs - len(samples)} outputs, showing the rest {len(samples)} images..."
+            )
         output_paths = []
         for i, sample in enumerate(samples):
             output_path = f"/tmp/out-{i}.png"
