@@ -53,12 +53,12 @@ class Predictor(BasePredictor):
         prompt: str = Input(description="Input prompt", default=""),
         width: int = Input(
             description="Width of output image. Maximum size is 1024x768 or 768x1024 because of memory limits",
-            choices=[128, 256, 512, 768, 896, 1024],
+            choices=[128, 256, 384, 448, 512, 576, 640, 704, 768, 832, 896, 960, 1024],
             default=512,
         ),
         height: int = Input(
             description="Height of output image. Maximum size is 1024x768 or 768x1024 because of memory limits",
-            choices=[128, 256, 512, 768, 896, 1024],
+            choices=[128, 256, 384, 448, 512, 576, 640, 704, 768, 832, 896, 960, 1024],
             default=512,
         ),
         init_image: Path = Input(
@@ -75,7 +75,7 @@ class Predictor(BasePredictor):
         ),
         num_outputs: int = Input(
             description="Number of images to output. NSFW filter in enabled, so you may get fewer outputs than requested if flagged",
-            choices=[1, 4],
+            choices=[1, 2, 4, 9],
             default=1,
         ),
         num_inference_steps: int = Input(
