@@ -22,7 +22,7 @@ class Predictor(BasePredictor):
         print("Loading pipeline...")
 
         self.pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
-            "CompVis/stable-diffusion-v1-4",
+            "runwayml/stable-diffusion-v1-5",
             cache_dir=MODEL_CACHE,
             local_files_only=True,
         ).to("cuda")
