@@ -75,8 +75,9 @@ class Predictor(BasePredictor):
         ),
         num_outputs: int = Input(
             description="Number of images to output. NSFW filter in enabled, so you may get fewer outputs than requested if flagged",
-            choices=[1, 2, 4, 9],
-            default=1,
+            ge=1,
+            le=10,
+            default=1
         ),
         num_inference_steps: int = Input(
             description="Number of denoising steps", ge=1, le=500, default=50
@@ -98,7 +99,7 @@ class Predictor(BasePredictor):
             seed = int.from_bytes(os.urandom(2), "big")
         print(f"Using seed: {seed}")
 
-        if width == height == 1024:
+        if width * height > 786432:
             raise ValueError(
                 "Maximum size is 1024x768 or 768x1024 pixels, because of memory limits. Please select a lower width or height."
             )
