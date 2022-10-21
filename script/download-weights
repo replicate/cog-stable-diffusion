@@ -7,6 +7,7 @@ import torch
 from diffusers import StableDiffusionPipeline
 
 os.makedirs("diffusers-cache", exist_ok=True)
+os.makedirs("inpainters-cache", exist_ok=True)
 
 
 pipe = StableDiffusionPipeline.from_pretrained(
