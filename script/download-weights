@@ -18,7 +18,7 @@ pipe = StableDiffusionPipeline.from_pretrained(
 
 pipe2 = StableDiffusionPipeline.from_pretrained(
    "runwayml/stable-diffusion-inpainting",
-    cache_dir="diffusers-cache",
+    cache_dir="inpainters-cache",
     use_auth_token=sys.argv[1],
 )
 
