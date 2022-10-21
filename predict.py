@@ -84,7 +84,7 @@ class Predictor(BasePredictor):
         ),
     ) -> List[Path]:
         
-        self.set_pipe(init_image is None)
+        self.set_pipe(init_image is not None)
         """Run a single prediction on the model"""
         if seed is None:
             seed = int.from_bytes(os.urandom(2), "big")
