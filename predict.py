@@ -14,19 +14,25 @@ from image_to_image import (
 
 
 MODEL_CACHE = "diffusers-cache"
+INP_CACHE = "inpainters-cache"
 
 
 class Predictor(BasePredictor):
-    def setup(self):
+    def setup(self,inpaint:bool=False):
         """Load the model into memory to make running multiple predictions efficient"""
         print("Loading pipeline...")
-
-        self.pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
-            "CompVis/stable-diffusion-v1-4",
-            cache_dir=MODEL_CACHE,
-            local_files_only=True,
-        ).to("cuda")
-
+        if inpaint:
+            self.pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
+                "runwayml/stable-diffusion-inpainting",
+                cache_dir=INP_CACHE,
+                local_files_only=True,
+            ).to("cuda")
+        else:
+            self.pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
+                "runwayml/stable-diffusion-v1-5",
+                cache_dir=MODEL_CACHE,
+                local_files_only=True,
+            ).to("cuda")
     @torch.inference_mode()
     @torch.cuda.amp.autocast()
     def predict(
