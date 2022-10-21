@@ -18,21 +18,24 @@ INP_CACHE = "inpainters-cache"
 
 
 class Predictor(BasePredictor):
-    def setup(self,inpaint:bool=False):
+    def setup(self):
         """Load the model into memory to make running multiple predictions efficient"""
         print("Loading pipeline...")
-        if inpaint:
-            self.pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
-                "runwayml/stable-diffusion-inpainting",
-                cache_dir=INP_CACHE,
-                local_files_only=True,
-            ).to("cuda")
-        else:
-            self.pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
-                "runwayml/stable-diffusion-v1-5",
-                cache_dir=MODEL_CACHE,
-                local_files_only=True,
-            ).to("cuda")
+        self.inpaint = StableDiffusionImg2ImgPipeline.from_pretrained(
+            "runwayml/stable-diffusion-inpainting",
+            cache_dir=INP_CACHE,
+            local_files_only=True,
+        )
+        self.txtimg = StableDiffusionImg2ImgPipeline.from_pretrained(
+            "runwayml/stable-diffusion-v1-5",
+            cache_dir=MODEL_CACHE,
+            local_files_only=True,
+        )
+        
+    def set_pipe(self,inpaint:bool=False):
+        self.pipe = self.inpaint.to('cuda') if inpaint else self.txtimg.to('cuda')
+        
+        
     @torch.inference_mode()
     @torch.cuda.amp.autocast()
     def predict(
@@ -80,6 +83,8 @@ class Predictor(BasePredictor):
             description="Random seed. Leave blank to randomize the seed", default=None
         ),
     ) -> List[Path]:
+        
+        self.set_pipe(init_image is None)
         """Run a single prediction on the model"""
         if seed is None:
             seed = int.from_bytes(os.urandom(2), "big")
