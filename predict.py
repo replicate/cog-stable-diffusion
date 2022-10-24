@@ -55,7 +55,7 @@ class Predictor(BasePredictor):
             default=0.8,
         ),
         num_outputs: int = Input(
-            description="Number of images to output. NSFW filter in enabled, so you may get fewer outputs than requested if flagged",
+            description="Number of images to output. NSFW filter is enabled, so you may get fewer outputs than requested if flagged",
             choices=[1, 4],
             default=1,
         ),
