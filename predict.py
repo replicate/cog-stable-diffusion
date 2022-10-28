@@ -22,7 +22,7 @@ class Predictor(BasePredictor):
         print("Loading pipeline...")
 
         self.pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
-            "CompVis/stable-diffusion-v1-4",
+            "runwayml/stable-diffusion-v1-5",
             cache_dir=MODEL_CACHE,
             local_files_only=True,
         ).to("cuda")
@@ -47,7 +47,7 @@ class Predictor(BasePredictor):
             default=None,
         ),
         mask: Path = Input(
-            description="Black and white image to use as mask for inpainting over init_image. Black pixels are inpainted and white pixels are preserved. Experimental feature, tends to work better with prompt strength of 0.5-0.7",
+            description="Black and white image to use as mask for inpainting over init_image. Black pixels are inpainted and white pixels are preserved. Tends to work better with prompt strength of 0.5-0.7. Consider using https://replicate.com/andreasjansson/stable-diffusion-inpainting instead.",
             default=None,
         ),
         prompt_strength: float = Input(
