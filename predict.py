@@ -2,15 +2,16 @@ import os
 from typing import List
 
 import torch
-from diffusers import PNDMScheduler, LMSDiscreteScheduler, DDIMScheduler
+from diffusers import (
+    PNDMScheduler,
+    LMSDiscreteScheduler,
+    DDIMScheduler,
+    StableDiffusionPipeline,
+    StableDiffusionImg2ImgPipeline,
+    StableDiffusionInpaintPipelineLegacy,
+)
 from PIL import Image
 from cog import BasePredictor, Input, Path
-
-from image_to_image import (
-    StableDiffusionImg2ImgPipeline,
-    preprocess_init_image,
-    preprocess_mask,
-)
 
 
 MODEL_CACHE = "diffusers-cache"
@@ -21,10 +22,28 @@ class Predictor(BasePredictor):
         """Load the model into memory to make running multiple predictions efficient"""
         print("Loading pipeline...")
 
-        self.pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
+        self.txt2img_pipe = StableDiffusionPipeline.from_pretrained(
             "runwayml/stable-diffusion-v1-5",
             cache_dir=MODEL_CACHE,
             local_files_only=True,
+        ).to("cuda")
+        self.img2img_pipe = StableDiffusionImg2ImgPipeline(
+            vae=self.txt2img_pipe.vae,
+            text_encoder=self.txt2img_pipe.text_encoder,
+            tokenizer=self.txt2img_pipe.tokenizer,
+            unet=self.txt2img_pipe.unet,
+            scheduler=self.txt2img_pipe.scheduler,
+            safety_checker=self.txt2img_pipe.safety_checker,
+            feature_extractor=self.txt2img_pipe.feature_extractor,
+        ).to("cuda")
+        self.inpaint_pipe = StableDiffusionInpaintPipelineLegacy(
+            vae=self.txt2img_pipe.vae,
+            text_encoder=self.txt2img_pipe.text_encoder,
+            tokenizer=self.txt2img_pipe.tokenizer,
+            unet=self.txt2img_pipe.unet,
+            scheduler=self.txt2img_pipe.scheduler,
+            safety_checker=self.txt2img_pipe.safety_checker,
+            feature_extractor=self.txt2img_pipe.feature_extractor,
         ).to("cuda")
 
     @torch.inference_mode()
@@ -84,35 +103,42 @@ class Predictor(BasePredictor):
                 "Maximum size is 1024x768 or 768x1024 pixels, because of memory limits. Please select a lower width or height."
             )
 
-        if init_image:
-            init_image = Image.open(init_image).convert("RGB")
-            init_image = preprocess_init_image(init_image, width, height).to("cuda")
-            if scheduler != "PNDM":
-                print("Using PNDM scheduler since an init image was provided")
-                scheduler = "PNDM"
-
-        self.pipe.scheduler = make_scheduler(scheduler)
-
+        extra_kwargs = {}
         if mask:
-            mask = Image.open(mask).convert("RGB")
-            mask = preprocess_mask(mask, width, height).to("cuda")
+            if not init_image:
+                raise ValueError("mask was provided without init_image")
+            pipe = self.inpaint_pipe
+            init_image = Image.open(init_image).convert("RGB")
+            extra_kwargs = {
+                "mask_image": Image.open(mask).convert("RGB").resize(init_image.size),
+                "init_image": init_image,
+                "strength": prompt_strength,
+            }
+        elif init_image:
+            pipe = self.img2img_pipe
+            extra_kwargs = {
+                "init_image": Image.open(init_image).convert("RGB"),
+                "strength": prompt_strength,
+            }
+        else:
+            pipe = self.txt2img_pipe
+
+        pipe.scheduler = make_scheduler(scheduler)
 
         generator = torch.Generator("cuda").manual_seed(seed)
-        output = self.pipe(
-            prompt=[prompt] * num_outputs if prompt is not None else None,
-            init_image=init_image,
-            mask=mask,
+        output = pipe(
+            prompt=prompt,
             width=width,
             height=height,
-            prompt_strength=prompt_strength,
             guidance_scale=guidance_scale,
             generator=generator,
             num_inference_steps=num_inference_steps,
+            **extra_kwargs,
         )
 
         samples = [
-            output["sample"][i]
-            for i, nsfw_flag in enumerate(output["nsfw_content_detected"])
+            output.images[i]
+            for i, nsfw_flag in enumerate(output.nsfw_content_detected)
             if not nsfw_flag
         ]
 
