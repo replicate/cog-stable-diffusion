@@ -134,6 +134,7 @@ class Predictor(BasePredictor):
             guidance_scale=guidance_scale,
             generator=generator,
             num_inference_steps=num_inference_steps,
+            num_images_per_prompt=num_outputs,
             **extra_kwargs,
         )
 
