@@ -9,6 +9,8 @@ from diffusers import (
     StableDiffusionPipeline,
     StableDiffusionImg2ImgPipeline,
     StableDiffusionInpaintPipelineLegacy,
+    EulerDiscreteScheduler,
+    EulerAncestralDiscreteScheduler
 )
 from PIL import Image
 from cog import BasePredictor, Input, Path
@@ -51,6 +53,7 @@ class Predictor(BasePredictor):
     def predict(
         self,
         prompt: str = Input(description="Input prompt", default=""),
+        negative_prompt: str = Input(description="Input negative prompt", default=""),
         width: int = Input(
             description="Width of output image. Maximum size is 1024x768 or 768x1024 because of memory limits",
             choices=[128, 256, 384, 448, 512, 576, 640, 704, 768, 832, 896, 960, 1024],
@@ -87,7 +90,7 @@ class Predictor(BasePredictor):
         ),
         scheduler: str = Input(
             default="K-LMS",
-            choices=["DDIM", "K-LMS", "PNDM"],
+            choices=["DDIM", "K-LMS", "PNDM", "K_EULER", "K_EULER_ANCESTRAL"],
             description="Choose a scheduler. If you use an init image, PNDM will be used",
         ),
         seed: int = Input(
@@ -163,17 +166,9 @@ class Predictor(BasePredictor):
 
 def make_scheduler(name):
     return {
-        "PNDM": PNDMScheduler(
-            beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear"
-        ),
-        "K-LMS": LMSDiscreteScheduler(
-            beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear"
-        ),
-        "DDIM": DDIMScheduler(
-            beta_start=0.00085,
-            beta_end=0.012,
-            beta_schedule="scaled_linear",
-            clip_sample=False,
-            set_alpha_to_one=False,
-        ),
+        "PNDM": PNDMScheduler.from_config("runwayml/stable-diffusion-v1-5", subfolder="scheduler"),
+        "K-LMS": LMSDiscreteScheduler.from_config("runwayml/stable-diffusion-v1-5", subfolder="scheduler"),
+        "DDIM": DDIMScheduler.from_config("runwayml/stable-diffusion-v1-5", subfolder="scheduler"),
+        "K_EULER": EulerDiscreteScheduler.from_config("runwayml/stable-diffusion-v1-5", subfolder="scheduler"),
+        "K_EULER_ANCESTRAL": EulerAncestralDiscreteScheduler.from_config("runwayml/stable-diffusion-v1-5", subfolder="scheduler"),
     }[name]
