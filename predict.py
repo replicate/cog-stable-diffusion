@@ -62,7 +62,7 @@ class Predictor(BasePredictor):
             default=512,
         ),
         init_image: Path = Input(
-            description="Inital image to generate variations of. Will be resized to the specified width and height",
+            description="Initial image to generate variations of. Will be resized to the specified width and height",
             default=None,
         ),
         mask: Path = Input(
