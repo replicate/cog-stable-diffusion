@@ -6,10 +6,13 @@ from diffusers import (
     PNDMScheduler,
     LMSDiscreteScheduler,
     DDIMScheduler,
+    EulerDiscreteScheduler,
+    EulerAncestralDiscreteScheduler,
     StableDiffusionPipeline,
     StableDiffusionImg2ImgPipeline,
     StableDiffusionInpaintPipelineLegacy,
 )
+
 from PIL import Image
 from cog import BasePredictor, Input, Path
 
@@ -51,7 +54,10 @@ class Predictor(BasePredictor):
     def predict(
         self,
         prompt: str = Input(description="Input prompt", default=""),
-        negative_prompt: str = Input(description="The prompt NOT to guide the image generation. Ignored when not using guidance", default=None),
+        negative_prompt: str = Input(
+            description="The prompt NOT to guide the image generation. Ignored when not using guidance",
+            default=None,
+        ),
         width: int = Input(
             description="Width of output image. Maximum size is 1024x768 or 768x1024 because of memory limits",
             choices=[128, 256, 384, 448, 512, 576, 640, 704, 768, 832, 896, 960, 1024],
@@ -63,7 +69,7 @@ class Predictor(BasePredictor):
             default=512,
         ),
         init_image: Path = Input(
-            description="Initial image to generate variations of. Will be resized to the specified width and height",
+            description="Inital image to generate variations of. Will be resized to the specified width and height",
             default=None,
         ),
         mask: Path = Input(
@@ -78,7 +84,7 @@ class Predictor(BasePredictor):
             description="Number of images to output. If the NSFW filter is triggered, you may get fewer outputs than this.",
             ge=1,
             le=10,
-            default=1
+            default=1,
         ),
         num_inference_steps: int = Input(
             description="Number of denoising steps", ge=1, le=500, default=50
@@ -88,7 +94,7 @@ class Predictor(BasePredictor):
         ),
         scheduler: str = Input(
             default="K-LMS",
-            choices=["DDIM", "K-LMS", "PNDM"],
+            choices=["DDIM", "K-LMS", "PNDM", "K_EULER", "K_EULER_ANCESTRAL"],
             description="Choose a scheduler. If you use an init image, PNDM will be used",
         ),
         seed: int = Input(
@@ -130,7 +136,9 @@ class Predictor(BasePredictor):
         generator = torch.Generator("cuda").manual_seed(seed)
         output = pipe(
             prompt=[prompt] * num_outputs if prompt is not None else None,
-            negative_prompt=[negative_prompt] * num_outputs if negative_prompt is not None else None,
+            negative_prompt=[negative_prompt] * num_outputs
+            if negative_prompt is not None
+            else None,
             width=width,
             height=height,
             guidance_scale=guidance_scale,
@@ -165,17 +173,35 @@ class Predictor(BasePredictor):
 
 def make_scheduler(name):
     return {
-        "PNDM": PNDMScheduler(
-            beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear"
+        "PNDM": PNDMScheduler.from_config(
+            "runwayml/stable-diffusion-v1-5",
+            cache_dir=MODEL_CACHE,
+            local_files_only=True,
+            subfolder="scheduler",
         ),
-        "K-LMS": LMSDiscreteScheduler(
-            beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear"
+        "K-LMS": LMSDiscreteScheduler.from_config(
+            "runwayml/stable-diffusion-v1-5",
+            cache_dir=MODEL_CACHE,
+            local_files_only=True,
+            subfolder="scheduler",
         ),
-        "DDIM": DDIMScheduler(
-            beta_start=0.00085,
-            beta_end=0.012,
-            beta_schedule="scaled_linear",
-            clip_sample=False,
-            set_alpha_to_one=False,
+        "DDIM": DDIMScheduler.from_config(
+            "runwayml/stable-diffusion-v1-5",
+            cache_dir=MODEL_CACHE,
+            local_files_only=True,
+            subfolder="scheduler",
+        ),
+        "K_EULER": EulerDiscreteScheduler.from_config(
+            "runwayml/stable-diffusion-v1-5",
+            cache_dir=MODEL_CACHE,
+            local_files_only=True,
+            subfolder="scheduler",
+        ),
+        "K_EULER_ANCESTRAL": EulerAncestralDiscreteScheduler.from_config(
+            "runwayml/stable-diffusion-v1-5",
+            cache_dir=MODEL_CACHE,
+            local_files_only=True,
+            subfolder="scheduler",
         ),
     }[name]
+git
