@@ -4,13 +4,54 @@ import os
 import sys
 
 import torch
-from diffusers import StableDiffusionPipeline
+from diffusers import (
+    PNDMScheduler,
+    LMSDiscreteScheduler,
+    DDIMScheduler,
+    StableDiffusionPipeline,
+    StableDiffusionImg2ImgPipeline,
+    StableDiffusionInpaintPipelineLegacy,
+    EulerDiscreteScheduler,
+    EulerAncestralDiscreteScheduler,
+)
 
-os.makedirs("diffusers-cache", exist_ok=True)
+MODEL_CACHE = "diffusers-cache"
+os.makedirs(MODEL_CACHE, exist_ok=True)
 
 
 pipe = StableDiffusionPipeline.from_pretrained(
     "runwayml/stable-diffusion-v1-5",
-    cache_dir="diffusers-cache",
+    cache_dir=MODEL_CACHE,
+    use_auth_token=sys.argv[1],
+)
+
+PNDM = PNDMScheduler.from_config(
+    "runwayml/stable-diffusion-v1-5",
+    cache_dir=MODEL_CACHE,
+    subfolder="scheduler",
+    use_auth_token=sys.argv[1],
+)
+KLMS = LMSDiscreteScheduler.from_config(
+    "runwayml/stable-diffusion-v1-5",
+    cache_dir=MODEL_CACHE,
+    subfolder="scheduler",
+    use_auth_token=sys.argv[1],
+)
+DDIM = DDIMScheduler.from_config(
+    "runwayml/stable-diffusion-v1-5",
+    cache_dir=MODEL_CACHE,
+    subfolder="scheduler",
+    use_auth_token=sys.argv[1],
+)
+K_EULER = EulerDiscreteScheduler.from_config(
+    "runwayml/stable-diffusion-v1-5",
+    cache_dir=MODEL_CACHE,
+    subfolder="scheduler",
+    use_auth_token=sys.argv[1],
+)
+K_EULER_ANCESTRAL = EulerAncestralDiscreteScheduler.from_config(
+    "runwayml/stable-diffusion-v1-5",
+    cache_dir=MODEL_CACHE,
+    subfolder="scheduler",
     use_auth_token=sys.argv[1],
 )
