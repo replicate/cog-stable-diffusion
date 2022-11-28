@@ -51,6 +51,7 @@ class Predictor(BasePredictor):
     def predict(
         self,
         prompt: str = Input(description="Input prompt", default=""),
+        negative_prompt: str = Input(description="The prompt NOT to guide the image generation. Ignored when not using guidance", default=None),
         width: int = Input(
             description="Width of output image. Maximum size is 1024x768 or 768x1024 because of memory limits",
             choices=[128, 256, 384, 448, 512, 576, 640, 704, 768, 832, 896, 960, 1024],
@@ -129,6 +130,7 @@ class Predictor(BasePredictor):
         generator = torch.Generator("cuda").manual_seed(seed)
         output = pipe(
             prompt=[prompt] * num_outputs if prompt is not None else None,
+            negative_prompt=[negative_prompt] * num_outputs if negative_prompt is not None else None,
             width=width,
             height=height,
             guidance_scale=guidance_scale,
