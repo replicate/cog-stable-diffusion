@@ -15,43 +15,41 @@ from diffusers import (
     EulerAncestralDiscreteScheduler,
 )
 
+from diffusers.pipelines.stable_diffusion.safety_checker import (
+    StableDiffusionSafetyChecker,
+)
+
+model_id = "stabilityai/stable-diffusion-2"
 MODEL_CACHE = "diffusers-cache"
 os.makedirs(MODEL_CACHE, exist_ok=True)
 
+# pipe = StableDiffusionPipeline.from_pretrained(
+#     model_id,
+#     cache_dir=MODEL_CACHE,
+# )
 
-pipe = StableDiffusionPipeline.from_pretrained(
-    "runwayml/stable-diffusion-v1-5",
-    cache_dir=MODEL_CACHE,
-    use_auth_token=sys.argv[1],
-)
-
-PNDM = PNDMScheduler.from_config(
-    "runwayml/stable-diffusion-v1-5",
+PNDM = PNDMScheduler.from_pretrained(
+    model_id,
     cache_dir=MODEL_CACHE,
     subfolder="scheduler",
-    use_auth_token=sys.argv[1],
 )
-KLMS = LMSDiscreteScheduler.from_config(
-    "runwayml/stable-diffusion-v1-5",
+KLMS = LMSDiscreteScheduler.from_pretrained(
+    model_id,
     cache_dir=MODEL_CACHE,
     subfolder="scheduler",
-    use_auth_token=sys.argv[1],
 )
-DDIM = DDIMScheduler.from_config(
-    "runwayml/stable-diffusion-v1-5",
+DDIM = DDIMScheduler.from_pretrained(
+    model_id,
     cache_dir=MODEL_CACHE,
     subfolder="scheduler",
-    use_auth_token=sys.argv[1],
 )
-K_EULER = EulerDiscreteScheduler.from_config(
-    "runwayml/stable-diffusion-v1-5",
+K_EULER = EulerDiscreteScheduler.from_pretrained(
+    model_id,
     cache_dir=MODEL_CACHE,
     subfolder="scheduler",
-    use_auth_token=sys.argv[1],
 )
-K_EULER_ANCESTRAL = EulerAncestralDiscreteScheduler.from_config(
-    "runwayml/stable-diffusion-v1-5",
+K_EULER_ANCESTRAL = EulerAncestralDiscreteScheduler.from_pretrained(
+    model_id,
     cache_dir=MODEL_CACHE,
     subfolder="scheduler",
-    use_auth_token=sys.argv[1],
 )
