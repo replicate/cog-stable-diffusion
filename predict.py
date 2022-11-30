@@ -9,14 +9,12 @@ from diffusers import (
     EulerDiscreteScheduler,
     EulerAncestralDiscreteScheduler,
     StableDiffusionPipeline,
-    StableDiffusionImg2ImgPipeline,
-    StableDiffusionInpaintPipelineLegacy,
 )
 
 from PIL import Image
 from cog import BasePredictor, Input, Path
 
-
+MODEL_ID = "stabilityai/stable-diffusion-2"
 MODEL_CACHE = "diffusers-cache"
 
 
@@ -24,66 +22,42 @@ class Predictor(BasePredictor):
     def setup(self):
         """Load the model into memory to make running multiple predictions efficient"""
         print("Loading pipeline...")
-
         self.txt2img_pipe = StableDiffusionPipeline.from_pretrained(
-            "runwayml/stable-diffusion-v1-5",
+            MODEL_ID,
             cache_dir=MODEL_CACHE,
             local_files_only=True,
-        ).to("cuda")
-        self.img2img_pipe = StableDiffusionImg2ImgPipeline(
-            vae=self.txt2img_pipe.vae,
-            text_encoder=self.txt2img_pipe.text_encoder,
-            tokenizer=self.txt2img_pipe.tokenizer,
-            unet=self.txt2img_pipe.unet,
-            scheduler=self.txt2img_pipe.scheduler,
-            safety_checker=self.txt2img_pipe.safety_checker,
-            feature_extractor=self.txt2img_pipe.feature_extractor,
-        ).to("cuda")
-        self.inpaint_pipe = StableDiffusionInpaintPipelineLegacy(
-            vae=self.txt2img_pipe.vae,
-            text_encoder=self.txt2img_pipe.text_encoder,
-            tokenizer=self.txt2img_pipe.tokenizer,
-            unet=self.txt2img_pipe.unet,
-            scheduler=self.txt2img_pipe.scheduler,
-            safety_checker=self.txt2img_pipe.safety_checker,
-            feature_extractor=self.txt2img_pipe.feature_extractor,
         ).to("cuda")
 
     @torch.inference_mode()
     @torch.cuda.amp.autocast()
     def predict(
         self,
-        prompt: str = Input(description="Input prompt", default=""),
+        prompt: str = Input(
+            description="Input prompt",
+            default="a photo of an astronaut riding a horse on mars",
+        ),
         negative_prompt: str = Input(
             description="The prompt NOT to guide the image generation. Ignored when not using guidance",
             default=None,
         ),
-        width: int = Input(
-            description="Width of output image. Maximum size is 1024x768 or 768x1024 because of memory limits",
-            choices=[128, 256, 384, 448, 512, 576, 640, 704, 768, 832, 896, 960, 1024],
-            default=512,
-        ),
-        height: int = Input(
-            description="Height of output image. Maximum size is 1024x768 or 768x1024 because of memory limits",
-            choices=[128, 256, 384, 448, 512, 576, 640, 704, 768, 832, 896, 960, 1024],
-            default=512,
-        ),
-        init_image: Path = Input(
-            description="Inital image to generate variations of. Will be resized to the specified width and height",
-            default=None,
-        ),
-        mask: Path = Input(
-            description="Black and white image to use as mask for inpainting over init_image. Black pixels are inpainted and white pixels are preserved. Tends to work better with prompt strength of 0.5-0.7. Consider using https://replicate.com/andreasjansson/stable-diffusion-inpainting instead.",
-            default=None,
-        ),
+        # width: int = Input(
+        #     description="Width of output image. Currently for sd-v2 only allowing 512 and 768 currently.",
+        #     choices=[512, 768],
+        #     default=512,
+        # ),
+        # height: int = Input(
+        #     description="Height of output image. Currently for sd-v2 only allowing 512 and 768.",
+        #     choices=[512, 768],
+        #     default=512,
+        # ),
         prompt_strength: float = Input(
             description="Prompt strength when using init image. 1.0 corresponds to full destruction of information in init image",
             default=0.8,
         ),
         num_outputs: int = Input(
-            description="Number of images to output. If the NSFW filter is triggered, you may get fewer outputs than this.",
+            description="Number of images to output. Currenly allowing 1-3, otherwise would OOM.",
             ge=1,
-            le=10,
+            le=3,
             default=1,
         ),
         num_inference_steps: int = Input(
@@ -93,9 +67,9 @@ class Predictor(BasePredictor):
             description="Scale for classifier-free guidance", ge=1, le=20, default=7.5
         ),
         scheduler: str = Input(
-            default="K-LMS",
-            choices=["DDIM", "K-LMS", "PNDM", "K_EULER", "K_EULER_ANCESTRAL"],
-            description="Choose a scheduler. If you use an init image, PNDM will be used",
+            default="K_EULER",
+            choices=["DDIM", "K_EULER"],
+            description="Choose a scheduler. Seems only DDIM and K_EULER work for sd-v2 now.",
         ),
         seed: int = Input(
             description="Random seed. Leave blank to randomize the seed", default=None
@@ -106,30 +80,9 @@ class Predictor(BasePredictor):
             seed = int.from_bytes(os.urandom(2), "big")
         print(f"Using seed: {seed}")
 
-        if width * height > 786432:
-            raise ValueError(
-                "Maximum size is 1024x768 or 768x1024 pixels, because of memory limits. Please select a lower width or height."
-            )
+        width, height = 768, 768
 
-        extra_kwargs = {}
-        if mask:
-            if not init_image:
-                raise ValueError("mask was provided without init_image")
-            pipe = self.inpaint_pipe
-            init_image = Image.open(init_image).convert("RGB")
-            extra_kwargs = {
-                "mask_image": Image.open(mask).convert("RGB").resize(init_image.size),
-                "init_image": init_image,
-                "strength": prompt_strength,
-            }
-        elif init_image:
-            pipe = self.img2img_pipe
-            extra_kwargs = {
-                "init_image": Image.open(init_image).convert("RGB"),
-                "strength": prompt_strength,
-            }
-        else:
-            pipe = self.txt2img_pipe
+        pipe = self.txt2img_pipe
 
         pipe.scheduler = make_scheduler(scheduler)
 
@@ -144,26 +97,10 @@ class Predictor(BasePredictor):
             guidance_scale=guidance_scale,
             generator=generator,
             num_inference_steps=num_inference_steps,
-            **extra_kwargs,
         )
 
-        samples = [
-            output.images[i]
-            for i, nsfw_flag in enumerate(output.nsfw_content_detected)
-            if not nsfw_flag
-        ]
-
-        if len(samples) == 0:
-            raise Exception(
-                f"NSFW content detected. Try running it again, or try a different prompt."
-            )
-
-        if num_outputs > len(samples):
-            print(
-                f"NSFW content detected in {num_outputs - len(samples)} outputs, showing the rest {len(samples)} images..."
-            )
         output_paths = []
-        for i, sample in enumerate(samples):
+        for i, sample in enumerate(output.images):
             output_path = f"/tmp/out-{i}.png"
             sample.save(output_path)
             output_paths.append(Path(output_path))
@@ -173,35 +110,25 @@ class Predictor(BasePredictor):
 
 def make_scheduler(name):
     return {
-        "PNDM": PNDMScheduler.from_config(
-            "runwayml/stable-diffusion-v1-5",
-            cache_dir=MODEL_CACHE,
-            local_files_only=True,
+        "PNDM": PNDMScheduler.from_pretrained(
+            MODEL_ID,
             subfolder="scheduler",
         ),
-        "K-LMS": LMSDiscreteScheduler.from_config(
-            "runwayml/stable-diffusion-v1-5",
-            cache_dir=MODEL_CACHE,
-            local_files_only=True,
+        "KLMS": LMSDiscreteScheduler.from_pretrained(
+            MODEL_ID,
             subfolder="scheduler",
         ),
-        "DDIM": DDIMScheduler.from_config(
-            "runwayml/stable-diffusion-v1-5",
-            cache_dir=MODEL_CACHE,
-            local_files_only=True,
+        "DDIM": DDIMScheduler.from_pretrained(
+            MODEL_ID,
             subfolder="scheduler",
         ),
-        "K_EULER": EulerDiscreteScheduler.from_config(
-            "runwayml/stable-diffusion-v1-5",
-            cache_dir=MODEL_CACHE,
-            local_files_only=True,
+        "K_EULER": EulerDiscreteScheduler.from_pretrained(
+            MODEL_ID,
             subfolder="scheduler",
         ),
-        "K_EULER_ANCESTRAL": EulerAncestralDiscreteScheduler.from_config(
-            "runwayml/stable-diffusion-v1-5",
-            cache_dir=MODEL_CACHE,
-            local_files_only=True,
+        "K_EULER_ANCESTRAL": EulerAncestralDiscreteScheduler.from_pretrained(
+            MODEL_ID,
             subfolder="scheduler",
         ),
     }[name]
-git
+

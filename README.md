@@ -1,12 +1,11 @@
-# Stable Diffusion Cog model
+# Stable Diffusion v2 Cog model
 
-[![Replicate](https://replicate.com/stability-ai/stable-diffusion/badge)](https://replicate.com/stability-ai/stable-diffusion)
+[![Replicate](https://replicate.com/cjwbw/stable-diffusion-v2/badge)](https://replicate.com/cjwbw/stable-diffusion-v2) 
 
-This is an implementation of the [Diffusers Stable Diffusion 1.5](https://huggingface.co/runwayml/stable-diffusion-v1-5) as a Cog model. [Cog packages machine learning models as standard containers.](https://github.com/replicate/cog)
+This is an implementation of the [Diffusers Stable Diffusion v2](https://huggingface.co/stabilityai/stable-diffusion-2) as a Cog model. [Cog packages machine learning models as standard containers.](https://github.com/replicate/cog)
 
-First, download the pre-trained weights [with your Hugging Face auth token](https://huggingface.co/settings/tokens):
 
-    cog run script/download-weights <your-hugging-face-auth-token>
+    cog run script/download-weights 
 
 Then, you can run predictions:
 
