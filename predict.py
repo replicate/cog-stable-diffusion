@@ -3,12 +3,14 @@ from typing import List
 
 import torch
 from diffusers import (
+    DiffusionPipeline,
+    StableDiffusionImg2ImgPipeline,
     PNDMScheduler,
     LMSDiscreteScheduler,
     DDIMScheduler,
     EulerDiscreteScheduler,
     EulerAncestralDiscreteScheduler,
-    StableDiffusionPipeline,
+    DPMSolverMultistepScheduler
 )
 
 from PIL import Image
@@ -22,10 +24,19 @@ class Predictor(BasePredictor):
     def setup(self):
         """Load the model into memory to make running multiple predictions efficient"""
         print("Loading pipeline...")
-        self.txt2img_pipe = StableDiffusionPipeline.from_pretrained(
+        self.txt2img_pipe = DiffusionPipeline.from_pretrained(
             MODEL_ID,
             cache_dir=MODEL_CACHE,
             local_files_only=True,
+        ).to("cuda")
+        self.img2img_pipe = StableDiffusionImg2ImgPipeline(
+            vae=self.txt2img_pipe.vae,
+            text_encoder=self.txt2img_pipe.text_encoder,
+            tokenizer=self.txt2img_pipe.tokenizer,
+            unet=self.txt2img_pipe.unet,
+            scheduler=self.txt2img_pipe.scheduler,
+            safety_checker=self.txt2img_pipe.safety_checker,
+            feature_extractor=self.txt2img_pipe.feature_extractor,
         ).to("cuda")
 
     @torch.inference_mode()
@@ -40,16 +51,20 @@ class Predictor(BasePredictor):
             description="The prompt NOT to guide the image generation. Ignored when not using guidance",
             default=None,
         ),
-        # width: int = Input(
-        #     description="Width of output image. Currently for sd-v2 only allowing 512 and 768 currently.",
-        #     choices=[512, 768],
-        #     default=512,
-        # ),
-        # height: int = Input(
-        #     description="Height of output image. Currently for sd-v2 only allowing 512 and 768.",
-        #     choices=[512, 768],
-        #     default=512,
-        # ),
+        width: int = Input(
+            description="Width of output image. Maximum size is 1024x768 or 768x1024 because of memory limits",
+            choices=[128, 256, 384, 448, 512, 576, 640, 704, 768, 832, 896, 960, 1024],
+            default=768,
+        ),
+        height: int = Input(
+            description="Height of output image. Maximum size is 1024x768 or 768x1024 because of memory limits",
+            choices=[128, 256, 384, 448, 512, 576, 640, 704, 768, 832, 896, 960, 1024],
+            default=768,
+        ),
+        init_image: Path = Input(
+            description="Initial image to generate variations of. Will be resized to the specified width and height",
+            default=None,
+        ),
         prompt_strength: float = Input(
             description="Prompt strength when using init image. 1.0 corresponds to full destruction of information in init image",
             default=0.8,
@@ -68,8 +83,8 @@ class Predictor(BasePredictor):
         ),
         scheduler: str = Input(
             default="K_EULER",
-            choices=["DDIM", "K_EULER"],
-            description="Choose a scheduler. Seems only DDIM and K_EULER work for sd-v2 now.",
+            choices=["DDIM", "K_EULER", "DPMSolverMultistep", "PNDM", "KLMS", "K_EULER_ANCESTRAL"],
+            description="Choose a scheduler. Seems only DDIM and K_EULER and DPMSolverMultistep work for sd-v2 now.",
         ),
         seed: int = Input(
             description="Random seed. Leave blank to randomize the seed", default=None
@@ -80,11 +95,21 @@ class Predictor(BasePredictor):
             seed = int.from_bytes(os.urandom(2), "big")
         print(f"Using seed: {seed}")
 
-        width, height = 768, 768
+        if width * height > 786432:
+            raise ValueError(
+                "Maximum size is 1024x768 or 768x1024 pixels, because of memory limits. Please select a lower width or height."
+            )
 
         pipe = self.txt2img_pipe
+        extra_kwargs = {}
+        if init_image:
+            pipe = self.img2img_pipe
+            extra_kwargs = {
+                "init_image": Image.open(init_image).convert("RGB"),
+                "strength": prompt_strength,
+            }
 
-        pipe.scheduler = make_scheduler(scheduler)
+        pipe.scheduler = make_scheduler(scheduler, pipe.scheduler.config)
 
         generator = torch.Generator("cuda").manual_seed(seed)
         output = pipe(
@@ -97,6 +122,7 @@ class Predictor(BasePredictor):
             guidance_scale=guidance_scale,
             generator=generator,
             num_inference_steps=num_inference_steps,
+            **extra_kwargs,
         )
 
         output_paths = []
@@ -108,27 +134,13 @@ class Predictor(BasePredictor):
         return output_paths
 
 
-def make_scheduler(name):
+def make_scheduler(name, config):
     return {
-        "PNDM": PNDMScheduler.from_pretrained(
-            MODEL_ID,
-            subfolder="scheduler",
-        ),
-        "KLMS": LMSDiscreteScheduler.from_pretrained(
-            MODEL_ID,
-            subfolder="scheduler",
-        ),
-        "DDIM": DDIMScheduler.from_pretrained(
-            MODEL_ID,
-            subfolder="scheduler",
-        ),
-        "K_EULER": EulerDiscreteScheduler.from_pretrained(
-            MODEL_ID,
-            subfolder="scheduler",
-        ),
-        "K_EULER_ANCESTRAL": EulerAncestralDiscreteScheduler.from_pretrained(
-            MODEL_ID,
-            subfolder="scheduler",
-        ),
+        "PNDM": PNDMScheduler.from_config(config),
+        "KLMS": LMSDiscreteScheduler.from_config(config),
+        "DDIM": DDIMScheduler.from_config(config),
+        "K_EULER": EulerDiscreteScheduler.from_config(config),
+        "K_EULER_ANCESTRAL": EulerAncestralDiscreteScheduler.from_config(config),
+        "DPMSolverMultistep": DPMSolverMultistepScheduler.from_config(config)
     }[name]
 

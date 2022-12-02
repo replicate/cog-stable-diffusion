@@ -1,55 +1,14 @@
 #!/usr/bin/env python
 
 import os
-import sys
+from diffusers import DiffusionPipeline
 
-import torch
-from diffusers import (
-    PNDMScheduler,
-    LMSDiscreteScheduler,
-    DDIMScheduler,
-    StableDiffusionPipeline,
-    StableDiffusionImg2ImgPipeline,
-    StableDiffusionInpaintPipelineLegacy,
-    EulerDiscreteScheduler,
-    EulerAncestralDiscreteScheduler,
-)
-
-from diffusers.pipelines.stable_diffusion.safety_checker import (
-    StableDiffusionSafetyChecker,
-)
 
 model_id = "stabilityai/stable-diffusion-2"
 MODEL_CACHE = "diffusers-cache"
 os.makedirs(MODEL_CACHE, exist_ok=True)
 
-# pipe = StableDiffusionPipeline.from_pretrained(
-#     model_id,
-#     cache_dir=MODEL_CACHE,
-# )
-
-PNDM = PNDMScheduler.from_pretrained(
+pipe = DiffusionPipeline.from_pretrained(
     model_id,
     cache_dir=MODEL_CACHE,
-    subfolder="scheduler",
-)
-KLMS = LMSDiscreteScheduler.from_pretrained(
-    model_id,
-    cache_dir=MODEL_CACHE,
-    subfolder="scheduler",
-)
-DDIM = DDIMScheduler.from_pretrained(
-    model_id,
-    cache_dir=MODEL_CACHE,
-    subfolder="scheduler",
-)
-K_EULER = EulerDiscreteScheduler.from_pretrained(
-    model_id,
-    cache_dir=MODEL_CACHE,
-    subfolder="scheduler",
-)
-K_EULER_ANCESTRAL = EulerAncestralDiscreteScheduler.from_pretrained(
-    model_id,
-    cache_dir=MODEL_CACHE,
-    subfolder="scheduler",
 )
