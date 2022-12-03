@@ -10,7 +10,7 @@ from diffusers import (
     DDIMScheduler,
     EulerDiscreteScheduler,
     EulerAncestralDiscreteScheduler,
-    DPMSolverMultistepScheduler
+    DPMSolverMultistepScheduler,
 )
 
 from PIL import Image
@@ -28,15 +28,6 @@ class Predictor(BasePredictor):
             MODEL_ID,
             cache_dir=MODEL_CACHE,
             local_files_only=True,
-        ).to("cuda")
-        self.img2img_pipe = StableDiffusionImg2ImgPipeline(
-            vae=self.txt2img_pipe.vae,
-            text_encoder=self.txt2img_pipe.text_encoder,
-            tokenizer=self.txt2img_pipe.tokenizer,
-            unet=self.txt2img_pipe.unet,
-            scheduler=self.txt2img_pipe.scheduler,
-            safety_checker=self.txt2img_pipe.safety_checker,
-            feature_extractor=self.txt2img_pipe.feature_extractor,
         ).to("cuda")
 
     @torch.inference_mode()
@@ -61,18 +52,14 @@ class Predictor(BasePredictor):
             choices=[128, 256, 384, 448, 512, 576, 640, 704, 768, 832, 896, 960, 1024],
             default=768,
         ),
-        init_image: Path = Input(
-            description="Initial image to generate variations of. Will be resized to the specified width and height",
-            default=None,
-        ),
         prompt_strength: float = Input(
             description="Prompt strength when using init image. 1.0 corresponds to full destruction of information in init image",
             default=0.8,
         ),
         num_outputs: int = Input(
-            description="Number of images to output. Currenly allowing 1-3, otherwise would OOM.",
+            description="Number of images to output.",
             ge=1,
-            le=3,
+            le=10,
             default=1,
         ),
         num_inference_steps: int = Input(
@@ -83,8 +70,12 @@ class Predictor(BasePredictor):
         ),
         scheduler: str = Input(
             default="K_EULER",
-            choices=["DDIM", "K_EULER", "DPMSolverMultistep", "PNDM", "KLMS", "K_EULER_ANCESTRAL"],
-            description="Choose a scheduler. Seems only DDIM and K_EULER and DPMSolverMultistep work for sd-v2 now.",
+            choices=[
+                "DDIM",
+                "K_EULER",
+                "DPMSolverMultistep",
+            ],
+            description="Choose a scheduler",
         ),
         seed: int = Input(
             description="Random seed. Leave blank to randomize the seed", default=None
@@ -101,13 +92,6 @@ class Predictor(BasePredictor):
             )
 
         pipe = self.txt2img_pipe
-        extra_kwargs = {}
-        if init_image:
-            pipe = self.img2img_pipe
-            extra_kwargs = {
-                "init_image": Image.open(init_image).convert("RGB"),
-                "strength": prompt_strength,
-            }
 
         pipe.scheduler = make_scheduler(scheduler, pipe.scheduler.config)
 
@@ -122,7 +106,6 @@ class Predictor(BasePredictor):
             guidance_scale=guidance_scale,
             generator=generator,
             num_inference_steps=num_inference_steps,
-            **extra_kwargs,
         )
 
         output_paths = []
@@ -136,11 +119,8 @@ class Predictor(BasePredictor):
 
 def make_scheduler(name, config):
     return {
-        "PNDM": PNDMScheduler.from_config(config),
-        "KLMS": LMSDiscreteScheduler.from_config(config),
         "DDIM": DDIMScheduler.from_config(config),
         "K_EULER": EulerDiscreteScheduler.from_config(config),
-        "K_EULER_ANCESTRAL": EulerAncestralDiscreteScheduler.from_config(config),
-        "DPMSolverMultistep": DPMSolverMultistepScheduler.from_config(config)
+        "DPMSolverMultistep": DPMSolverMultistepScheduler.from_config(config),
     }[name]
 
