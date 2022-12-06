@@ -1,5 +1,6 @@
 build:
   gpu: true
+  cuda: "11.6"
   python_version: "3.10"
   python_packages:
     - "diffusers==0.9.0"
