@@ -39,7 +39,7 @@ class Predictor(BasePredictor):
             default="a photo of an astronaut riding a horse on mars",
         ),
         negative_prompt: str = Input(
-            description="The prompt NOT to guide the image generation. Ignored when not using guidance",
+            description="Specify things to not see in the output",
             default=None,
         ),
         width: int = Input(
