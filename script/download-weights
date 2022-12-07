@@ -5,7 +5,7 @@ import shutil
 from diffusers import DiffusionPipeline
 
 
-model_id = "stabilityai/stable-diffusion-2"
+model_id = "stabilityai/stable-diffusion-2-1"
 MODEL_CACHE = "diffusers-cache"
 if os.path.exists(MODEL_CACHE):
     shutil.rmtree(MODEL_CACHE)
