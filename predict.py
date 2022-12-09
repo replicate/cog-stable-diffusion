@@ -2,14 +2,13 @@ import os
 from typing import List
 
 import torch
-from diffusers import (
-    StableDiffusionPipeline,
-    DDIMScheduler,
-    EulerDiscreteScheduler,
-    DPMSolverMultistepScheduler,
-)
-
 from cog import BasePredictor, Input, Path
+from diffusers import (
+    DDIMScheduler,
+    DPMSolverMultistepScheduler,
+    EulerDiscreteScheduler,
+    StableDiffusionPipeline,
+)
 
 MODEL_ID = "stabilityai/stable-diffusion-2-1"
 MODEL_CACHE = "diffusers-cache"
@@ -115,4 +114,3 @@ def make_scheduler(name, config):
         "K_EULER": EulerDiscreteScheduler.from_config(config),
         "DPMSolverMultistep": DPMSolverMultistepScheduler.from_config(config),
     }[name]
-
