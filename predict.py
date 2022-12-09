@@ -24,7 +24,7 @@ class Predictor(BasePredictor):
     def setup(self):
         """Load the model into memory to make running multiple predictions efficient"""
         print("Loading pipeline...")
-        self.txt2img_pipe = DiffusionPipeline.from_pretrained(
+        self.pipe = DiffusionPipeline.from_pretrained(
             MODEL_ID,
             cache_dir=MODEL_CACHE,
             local_files_only=True,
@@ -90,12 +90,10 @@ class Predictor(BasePredictor):
                 "Maximum size is 1024x768 or 768x1024 pixels, because of memory limits. Please select a lower width or height."
             )
 
-        pipe = self.txt2img_pipe
-
-        pipe.scheduler = make_scheduler(scheduler, pipe.scheduler.config)
+        self.pipe.scheduler = make_scheduler(scheduler, self.pipe.scheduler.config)
 
         generator = torch.Generator("cuda").manual_seed(seed)
-        output = pipe(
+        output = self.pipe(
             prompt=[prompt] * num_outputs if prompt is not None else None,
             negative_prompt=[negative_prompt] * num_outputs
             if negative_prompt is not None
