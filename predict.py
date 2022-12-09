@@ -4,16 +4,11 @@ from typing import List
 import torch
 from diffusers import (
     DiffusionPipeline,
-    StableDiffusionImg2ImgPipeline,
-    PNDMScheduler,
-    LMSDiscreteScheduler,
     DDIMScheduler,
     EulerDiscreteScheduler,
-    EulerAncestralDiscreteScheduler,
     DPMSolverMultistepScheduler,
 )
 
-from PIL import Image
 from cog import BasePredictor, Input, Path
 
 MODEL_ID = "stabilityai/stable-diffusion-2-1"
