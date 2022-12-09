@@ -2,7 +2,7 @@
 
 import os
 import shutil
-from diffusers import DiffusionPipeline
+from diffusers import StableDiffusionPipeline
 
 
 model_id = "stabilityai/stable-diffusion-2-1"
@@ -11,7 +11,7 @@ if os.path.exists(MODEL_CACHE):
     shutil.rmtree(MODEL_CACHE)
 os.makedirs(MODEL_CACHE, exist_ok=True)
 
-pipe = DiffusionPipeline.from_pretrained(
+pipe = StableDiffusionPipeline.from_pretrained(
     model_id,
     cache_dir=MODEL_CACHE,
 )

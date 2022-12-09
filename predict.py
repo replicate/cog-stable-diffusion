@@ -3,7 +3,7 @@ from typing import List
 
 import torch
 from diffusers import (
-    DiffusionPipeline,
+    StableDiffusionPipeline,
     DDIMScheduler,
     EulerDiscreteScheduler,
     DPMSolverMultistepScheduler,
@@ -19,7 +19,7 @@ class Predictor(BasePredictor):
     def setup(self):
         """Load the model into memory to make running multiple predictions efficient"""
         print("Loading pipeline...")
-        self.pipe = DiffusionPipeline.from_pretrained(
+        self.pipe = StableDiffusionPipeline.from_pretrained(
             MODEL_ID,
             cache_dir=MODEL_CACHE,
             local_files_only=True,
