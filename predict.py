@@ -31,7 +31,6 @@ class Predictor(BasePredictor):
         ).to("cuda")
 
     @torch.inference_mode()
-    @torch.cuda.amp.autocast()
     def predict(
         self,
         prompt: str = Input(
