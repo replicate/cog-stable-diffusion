@@ -18,8 +18,12 @@ class Predictor(BasePredictor):
     def setup(self):
         """Load the model into memory to make running multiple predictions efficient"""
         print("Loading pipeline...")
+
+        # If bundled weights are present, use them. Otherwise, load from Hugging Face.
+        model_name_or_path = "weights" if os.path.exists("weights") else MODEL_ID
+
         self.pipe = StableDiffusionPipeline.from_pretrained(
-            MODEL_ID,
+            model_name_or_path,
             cache_dir=MODEL_CACHE,
             local_files_only=True,
         ).to("cuda")
