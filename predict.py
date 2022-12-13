@@ -1,3 +1,4 @@
+import json
 import os
 from typing import List
 
@@ -10,26 +11,52 @@ from diffusers import (
     StableDiffusionPipeline,
 )
 
+# Stable Diffusion Defaults
 MODEL_ID = "stabilityai/stable-diffusion-2-1"
 MODEL_CACHE = "diffusers-cache"
+DEFAULT_HEIGHT = 768
+DEFAULT_WIDTH = 768
+DEFAULT_SCHEDULER = "K_EULER"
+DEFAULT_PROMPT = "a photo of an astronaut riding a horse on mars"
+
+# Dreambooth Training Defaults
+USE_DREAMBOOTH_WEIGHTS = os.path.exists("weights")
+if USE_DREAMBOOTH_WEIGHTS:
+    DEFAULT_HEIGHT = 512
+    DEFAULT_WIDTH = 512
+    DEFAULT_SCHEDULER = "DDIM"
+    try:
+        with open("weights/args.json") as f:
+            args = json.load(f)
+            if args.get('instance_prompt'):
+                DEFAULT_PROMPT = args['instance_prompt']
+    except:
+        pass
 
 
 class Predictor(BasePredictor):
     def setup(self):
         """Load the model into memory to make running multiple predictions efficient"""
         print("Loading pipeline...")
-        self.pipe = StableDiffusionPipeline.from_pretrained(
-            MODEL_ID,
-            cache_dir=MODEL_CACHE,
-            local_files_only=True,
-        ).to("cuda")
+        if USE_DREAMBOOTH_WEIGHTS:
+            self.pipe = StableDiffusionPipeline.from_pretrained(
+                "weights",
+                safety_checker=None,
+                torch_dtype=torch.float16,
+            ).to("cuda")
+        else:
+            self.pipe = StableDiffusionPipeline.from_pretrained(
+                MODEL_ID,
+                cache_dir=MODEL_CACHE,
+                local_files_only=True,
+            ).to("cuda")
 
     @torch.inference_mode()
     def predict(
         self,
         prompt: str = Input(
             description="Input prompt",
-            default="a photo of an astronaut riding a horse on mars",
+            default=DEFAULT_PROMPT,
         ),
         negative_prompt: str = Input(
             description="Specify things to not see in the output",
@@ -38,12 +65,12 @@ class Predictor(BasePredictor):
         width: int = Input(
             description="Width of output image. Maximum size is 1024x768 or 768x1024 because of memory limits",
             choices=[128, 256, 384, 448, 512, 576, 640, 704, 768, 832, 896, 960, 1024],
-            default=768,
+            default=DEFAULT_WIDTH,
         ),
         height: int = Input(
             description="Height of output image. Maximum size is 1024x768 or 768x1024 because of memory limits",
             choices=[128, 256, 384, 448, 512, 576, 640, 704, 768, 832, 896, 960, 1024],
-            default=768,
+            default=DEFAULT_HEIGHT,
         ),
         prompt_strength: float = Input(
             description="Prompt strength when using init image. 1.0 corresponds to full destruction of information in init image",
@@ -62,7 +89,7 @@ class Predictor(BasePredictor):
             description="Scale for classifier-free guidance", ge=1, le=20, default=7.5
         ),
         scheduler: str = Input(
-            default="K_EULER",
+            default=DEFAULT_SCHEDULER,
             choices=[
                 "DDIM",
                 "K_EULER",
