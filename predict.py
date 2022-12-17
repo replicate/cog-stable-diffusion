@@ -4,10 +4,13 @@ from typing import List
 import torch
 from cog import BasePredictor, Input, Path
 from diffusers import (
-    DDIMScheduler,
-    DPMSolverMultistepScheduler,
-    EulerDiscreteScheduler,
     StableDiffusionPipeline,
+    PNDMScheduler,
+    LMSDiscreteScheduler,
+    DDIMScheduler,
+    EulerDiscreteScheduler,
+    EulerAncestralDiscreteScheduler,
+    DPMSolverMultistepScheduler,
 )
 
 MODEL_ID = "stabilityai/stable-diffusion-2-1"
@@ -62,13 +65,16 @@ class Predictor(BasePredictor):
             description="Scale for classifier-free guidance", ge=1, le=20, default=7.5
         ),
         scheduler: str = Input(
-            default="K_EULER",
+            default="DPMSolverMultistep",
             choices=[
                 "DDIM",
                 "K_EULER",
                 "DPMSolverMultistep",
+                "K_EULER_ANCESTRAL",
+                "PNDM",
+                "KLMS",
             ],
-            description="Choose a scheduler",
+            description="Choose a scheduler.",
         ),
         seed: int = Input(
             description="Random seed. Leave blank to randomize the seed", default=None
@@ -110,7 +116,10 @@ class Predictor(BasePredictor):
 
 def make_scheduler(name, config):
     return {
+        "PNDM": PNDMScheduler.from_config(config),
+        "KLMS": LMSDiscreteScheduler.from_config(config),
         "DDIM": DDIMScheduler.from_config(config),
         "K_EULER": EulerDiscreteScheduler.from_config(config),
+        "K_EULER_ANCESTRAL": EulerAncestralDiscreteScheduler.from_config(config),
         "DPMSolverMultistep": DPMSolverMultistepScheduler.from_config(config),
     }[name]
