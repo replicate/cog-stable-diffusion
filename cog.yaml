@@ -3,11 +3,11 @@ build:
   cuda: "11.6"
   python_version: "3.10"
   python_packages:
-    - "diffusers==0.10.0"
+    - "diffusers==0.11.1"
     - "torch==1.13.0"
     - "ftfy==6.1.1"
     - "scipy==1.9.3"
     - "transformers==4.25.1"
-    - "accelerate==0.14.0"
+    - "accelerate==0.15.0"
 
 predict: "predict.py:Predictor"
