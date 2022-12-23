@@ -9,17 +9,28 @@ from diffusers import (
     EulerDiscreteScheduler,
     StableDiffusionPipeline,
 )
+from diffusers.pipelines.stable_diffusion.safety_checker import (
+    StableDiffusionSafetyChecker,
+)
+
 
 MODEL_ID = "stabilityai/stable-diffusion-2-1"
 MODEL_CACHE = "diffusers-cache"
+SAFETY_MODEL_ID = "CompVis/stable-diffusion-safety-checker"
 
 
 class Predictor(BasePredictor):
     def setup(self):
         """Load the model into memory to make running multiple predictions efficient"""
         print("Loading pipeline...")
+        safety_checker = StableDiffusionSafetyChecker.from_pretrained(
+            SAFETY_MODEL_ID,
+            cache_dir=MODEL_CACHE,
+            local_files_only=True,
+        )
         self.pipe = StableDiffusionPipeline.from_pretrained(
             MODEL_ID,
+            safety_checker=safety_checker,
             cache_dir=MODEL_CACHE,
             local_files_only=True,
         ).to("cuda")
@@ -101,9 +112,10 @@ class Predictor(BasePredictor):
 
         output_paths = []
         for i, sample in enumerate(output.images):
-            output_path = f"/tmp/out-{i}.png"
-            sample.save(output_path)
-            output_paths.append(Path(output_path))
+            if output.nsfw_content_detected and not output.nsfw_content_detected[i]:
+                output_path = f"/tmp/out-{i}.png"
+                sample.save(output_path)
+                output_paths.append(Path(output_path))
 
         return output_paths
 
