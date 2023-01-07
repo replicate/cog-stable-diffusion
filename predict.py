@@ -59,10 +59,6 @@ class Predictor(BasePredictor):
             choices=[128, 256, 384, 448, 512, 576, 640, 704, 768, 832, 896, 960, 1024],
             default=768,
         ),
-        prompt_strength: float = Input(
-            description="Prompt strength when using init image. 1.0 corresponds to full destruction of information in init image",
-            default=0.8,
-        ),
         num_outputs: int = Input(
             description="Number of images to output.",
             ge=1,
