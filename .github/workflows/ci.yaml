@@ -1,0 +1,18 @@
+name: CI
+
+on: [push]
+
+jobs:
+  test:
+    name: Test Stable Diffusion
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - name: Install Cog
+        run: curl -o /usr/local/bin/cog -L "https://github.com/replicate/cog/releases/latest/download/cog_$(uname -s)_$(uname -m)" && chmod +x /usr/local/bin/cog
+      - name: Cog login"
+        run: echo "${{ secrets.COG_LOGIN_TOKEN }}" | cog login --token-stdin
+      - name: Download weights
+        run: cog run script/download-weights
+      - name: Push to CI model on Replicate
+        run: cog push r8.im/replicate/stable-diffusion-ci
