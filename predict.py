@@ -1,5 +1,7 @@
 import os
 from typing import List
+import time
+import dataclasses
 
 import torch
 from cog import BasePredictor, Input, Path
@@ -21,22 +23,47 @@ MODEL_ID = "stabilityai/stable-diffusion-2-1"
 MODEL_CACHE = "diffusers-cache"
 SAFETY_MODEL_ID = "CompVis/stable-diffusion-safety-checker"
 
+@dataclasses.dataclass
+class UNet2DConditionOutput:
+    sample: torch.FloatTensor
+
 
 class Predictor(BasePredictor):
     def setup(self):
         """Load the model into memory to make running multiple predictions efficient"""
+        start_time = time.time()
         print("Loading pipeline...")
         safety_checker = StableDiffusionSafetyChecker.from_pretrained(
             SAFETY_MODEL_ID,
             cache_dir=MODEL_CACHE,
             local_files_only=True,
         )
-        self.pipe = StableDiffusionPipeline.from_pretrained(
+        pipe = StableDiffusionPipeline.from_pretrained(
             MODEL_ID,
             safety_checker=safety_checker,
             cache_dir=MODEL_CACHE,
             local_files_only=True,
         ).to("cuda")
+
+        unet_traced = torch.jit.load("unet_traced.pt")
+
+        class TracedUNet(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.in_channels = pipe.unet.in_channels
+                self.device = pipe.unet.device
+
+            def forward(self, latent_model_input, t, encoder_hidden_states):
+                sample = unet_traced(latent_model_input, t, encoder_hidden_states)[0]
+                return UNet2DConditionOutput(sample=sample)
+
+        pipe.unet = TracedUNet()
+        self.pipe = pipe
+        #self.pipe.unet.to(memory_format=torch.channels_last)
+        # self.pipe.scheduler = make_scheduler("DPMSolverMultistep", self.pipe.scheduler.config)
+
+        # pipe(prompt="a cool astronaut", height=512, width=512, num_inference_steps=5)
+        print(f"setup time{time.time() - start_time}")
 
     @torch.inference_mode()
     def predict(
@@ -92,6 +119,7 @@ class Predictor(BasePredictor):
         ),
     ) -> List[Path]:
         """Run a single prediction on the model"""
+        start_time = time.time()
         if seed is None:
             seed = int.from_bytes(os.urandom(2), "big")
         print(f"Using seed: {seed}")
@@ -130,6 +158,7 @@ class Predictor(BasePredictor):
                 f"NSFW content detected. Try running it again, or try a different prompt."
             )
 
+        print(f"prediction time{time.time() - start_time}")
         return output_paths
 
 
