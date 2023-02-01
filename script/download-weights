@@ -24,4 +24,5 @@ saftey_checker = StableDiffusionSafetyChecker.from_pretrained(
 pipe = StableDiffusionPipeline.from_pretrained(
     MODEL_ID,
     cache_dir=MODEL_CACHE,
+    custom_pipeline="lpw_stable_diffusion"
 )

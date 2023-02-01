@@ -3,19 +3,12 @@ from typing import List
 
 import torch
 from cog import BasePredictor, Input, Path
-from diffusers import (
-    StableDiffusionPipeline,
-    PNDMScheduler,
-    LMSDiscreteScheduler,
-    DDIMScheduler,
-    EulerDiscreteScheduler,
-    EulerAncestralDiscreteScheduler,
-    DPMSolverMultistepScheduler,
-)
-from diffusers.pipelines.stable_diffusion.safety_checker import (
-    StableDiffusionSafetyChecker,
-)
-
+from diffusers import (DDIMScheduler, DPMSolverMultistepScheduler,
+                       EulerAncestralDiscreteScheduler, EulerDiscreteScheduler,
+                       HeunDiscreteScheduler, LMSDiscreteScheduler,
+                       PNDMScheduler, StableDiffusionPipeline)
+from diffusers.pipelines.stable_diffusion.safety_checker import \
+    StableDiffusionSafetyChecker
 
 MODEL_ID = "stabilityai/stable-diffusion-2-1"
 MODEL_CACHE = "diffusers-cache"
@@ -36,6 +29,7 @@ class Predictor(BasePredictor):
             safety_checker=safety_checker,
             cache_dir=MODEL_CACHE,
             local_files_only=True,
+            custom_pipeline="lpw_stable_diffusion",
         ).to("cuda")
 
     @torch.inference_mode()
@@ -84,6 +78,7 @@ class Predictor(BasePredictor):
                 "K_EULER_ANCESTRAL",
                 "PNDM",
                 "KLMS",
+                "K_HEUN",
             ],
             description="Choose a scheduler.",
         ),
@@ -141,4 +136,5 @@ def make_scheduler(name, config):
         "K_EULER": EulerDiscreteScheduler.from_config(config),
         "K_EULER_ANCESTRAL": EulerAncestralDiscreteScheduler.from_config(config),
         "DPMSolverMultistep": DPMSolverMultistepScheduler.from_config(config),
+        "K_HEUN": HeunDiscreteScheduler.from_config(config),
     }[name]
