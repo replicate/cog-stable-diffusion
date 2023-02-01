@@ -1,5 +1,7 @@
 import os
 from typing import List
+import time
+
 
 import torch
 from cog import BasePredictor, Input, Path
@@ -25,18 +27,31 @@ SAFETY_MODEL_ID = "CompVis/stable-diffusion-safety-checker"
 class Predictor(BasePredictor):
     def setup(self):
         """Load the model into memory to make running multiple predictions efficient"""
+        import time
+        start_time = time.time()
         print("Loading pipeline...")
         safety_checker = StableDiffusionSafetyChecker.from_pretrained(
             SAFETY_MODEL_ID,
             cache_dir=MODEL_CACHE,
             local_files_only=True,
         )
-        self.pipe = StableDiffusionPipeline.from_pretrained(
+        pipe = StableDiffusionPipeline.from_pretrained(
             MODEL_ID,
             safety_checker=safety_checker,
             cache_dir=MODEL_CACHE,
             local_files_only=True,
-        ).to("cuda")
+        )
+        comp_start = time.time()
+        with torch.inference_mode():
+            unet = torch.compile(pipe.unet)
+            pipe.unet = unet
+            print(f"compilation time: {time.time() - comp_start}")
+            self.pipe = pipe.to("cuda")
+
+        # TODO - try this with everything
+
+        end_time = time.time()
+        print(f"Time elapsed: {end_time -start_time}")
 
     @torch.inference_mode()
     def predict(
@@ -92,6 +107,7 @@ class Predictor(BasePredictor):
         ),
     ) -> List[Path]:
         """Run a single prediction on the model"""
+        start_time = time.time()
         if seed is None:
             seed = int.from_bytes(os.urandom(2), "big")
         print(f"Using seed: {seed}")
@@ -129,7 +145,7 @@ class Predictor(BasePredictor):
             raise Exception(
                 f"NSFW content detected. Try running it again, or try a different prompt."
             )
-
+        print(f"inference time: {time.time() - start_time}")
         return output_paths
 
 

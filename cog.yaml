@@ -10,4 +10,7 @@ build:
     - "transformers==4.25.1"
     - "accelerate==0.15.0"
 
+  run:
+    - "pip3 install numpy --pre torch --force-reinstall --extra-index-url https://download.pytorch.org/whl/nightly/cu117"
+
 predict: "predict.py:Predictor"
