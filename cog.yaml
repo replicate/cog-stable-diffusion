@@ -12,5 +12,6 @@ build:
 
   run:
     - "pip install xformers"
+    - "pip install triton"
 
 predict: "predict.py:Predictor"
