@@ -23,6 +23,14 @@ MODEL_ID = "stabilityai/stable-diffusion-2-1"
 MODEL_CACHE = "diffusers-cache"
 SAFETY_MODEL_ID = "CompVis/stable-diffusion-safety-checker"
 
+def compile_it(model):
+    start = time.time()
+    new_model = torch.compile(model)
+    print(f"compilation time for {model.__class__.__name__}: {time.time() - start}")
+    return new_model
+
+
+
 
 class Predictor(BasePredictor):
     def setup(self):
@@ -41,17 +49,23 @@ class Predictor(BasePredictor):
             cache_dir=MODEL_CACHE,
             local_files_only=True,
         )
-        comp_start = time.time()
+
         with torch.inference_mode():
-            unet = torch.compile(pipe.unet)
-            pipe.unet = unet
-            print(f"compilation time: {time.time() - comp_start}")
+            new_unet = compile_it(pipe.unet)
+            pipe.unet = new_unet
+
+            # TODO - try this with everything
+            new_clip = compile_it(pipe.text_encoder)
+            pipe.text_encoder = new_clip
+
+            new_vae = compile_it(pipe.vae)
+            pipe.vae = new_vae
+
             self.pipe = pipe.to("cuda")
+            start_time = time.time()
+            pipe(prompt="runners doing a warmup lap")
+            print(f"actual compilation time: {time.time() - start_time}")
 
-        # TODO - try this with everything
-
-        end_time = time.time()
-        print(f"Time elapsed: {end_time -start_time}")
 
     @torch.inference_mode()
     def predict(
