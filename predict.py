@@ -33,18 +33,16 @@ class Predictor(BasePredictor):
             SAFETY_MODEL_ID,
             cache_dir=MODEL_CACHE,
             local_files_only=True,
-            torch_dtype=torch.float16
         )
         self.pipe = StableDiffusionPipeline.from_pretrained(
             MODEL_ID,
             safety_checker=safety_checker,
             cache_dir=MODEL_CACHE,
             local_files_only=True,
-            torch_dtype=torch.float16
         ).to("cuda")
 
         self.pipe.enable_xformers_memory_efficient_attention()
-        self.pipe.vae.enable_xformers_memory_efficient_attention(attention_op=None)
+        #self.pipe.vae.enable_xformers_memory_efficient_attention(attention_op=None)
         end_time = time.time()
         print(f"setup time: {end_time - start_time}")
 
