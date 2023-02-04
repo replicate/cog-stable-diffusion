@@ -37,15 +37,17 @@ class Predictor(BasePredictor):
             SAFETY_MODEL_ID,
             cache_dir=MODEL_CACHE,
             local_files_only=True,
+            torch_dtype=torch.float16
         )
         pipe = StableDiffusionPipeline.from_pretrained(
             MODEL_ID,
             safety_checker=safety_checker,
             cache_dir=MODEL_CACHE,
             local_files_only=True,
+            torch_dtype=torch.float16
         ).to("cuda")
 
-        unet_traced = torch.jit.load("unet_traced.pt")
+        unet_traced = torch.jit.load("unet_traced_fp16.pt")
 
         class TracedUNet(torch.nn.Module):
             def __init__(self):
@@ -59,10 +61,10 @@ class Predictor(BasePredictor):
 
         pipe.unet = TracedUNet()
         self.pipe = pipe
-        #self.pipe.unet.to(memory_format=torch.channels_last)
+        self.pipe.unet.to(memory_format=torch.channels_last)
         # self.pipe.scheduler = make_scheduler("DPMSolverMultistep", self.pipe.scheduler.config)
 
-        # pipe(prompt="a cool astronaut", height=512, width=512, num_inference_steps=5)
+        pipe(prompt="a cool astronaut", height=512, width=512, num_inference_steps=5)
         print(f"setup time{time.time() - start_time}")
 
     @torch.inference_mode()
