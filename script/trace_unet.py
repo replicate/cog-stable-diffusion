@@ -14,15 +14,16 @@ unet_runs_per_experiment = 50
 
 # load inputs
 def generate_inputs():
-    sample = torch.randn(2, 4, 64, 64).cuda()
-    timestep = torch.rand(1).cuda() * 999
-    encoder_hidden_states = torch.randn(2, 77, 1024).cuda()
+    sample = torch.randn(2, 4, 64, 64).half().cuda()
+    timestep = torch.rand(1).half().cuda() * 999
+    encoder_hidden_states = torch.randn(2, 77, 1024).half().cuda()
     return sample, timestep, encoder_hidden_states
 
 
 pipe = StableDiffusionPipeline.from_pretrained(
     "stabilityai/stable-diffusion-2-1",
-    cache_dir=MODEL_CACHE
+    cache_dir=MODEL_CACHE,
+    torch_dtype=torch.float16
 ).to("cuda")
 unet = pipe.unet
 unet.eval()
@@ -67,4 +68,4 @@ with torch.inference_mode():
         print(f"unet inference took {time.time() - start_time:.2f} seconds")
 
 # save the model
-unet_traced.save("unet_traced.pt")
+unet_traced.save("unet_traced_fp16.pt")

@@ -31,7 +31,6 @@ class UNet2DConditionOutput:
 class Predictor(BasePredictor):
     def setup(self):
         """Load the model into memory to make running multiple predictions efficient"""
-        start_time = time.time()
         print("Loading pipeline...")
         safety_checker = StableDiffusionSafetyChecker.from_pretrained(
             SAFETY_MODEL_ID,
@@ -62,10 +61,6 @@ class Predictor(BasePredictor):
         pipe.unet = TracedUNet()
         self.pipe = pipe
         self.pipe.unet.to(memory_format=torch.channels_last)
-        # self.pipe.scheduler = make_scheduler("DPMSolverMultistep", self.pipe.scheduler.config)
-
-        pipe(prompt="a cool astronaut", height=512, width=512, num_inference_steps=5)
-        print(f"setup time{time.time() - start_time}")
 
     @torch.inference_mode()
     def predict(
@@ -121,7 +116,6 @@ class Predictor(BasePredictor):
         ),
     ) -> List[Path]:
         """Run a single prediction on the model"""
-        start_time = time.time()
         if seed is None:
             seed = int.from_bytes(os.urandom(2), "big")
         print(f"Using seed: {seed}")
@@ -160,7 +154,6 @@ class Predictor(BasePredictor):
                 f"NSFW content detected. Try running it again, or try a different prompt."
             )
 
-        print(f"prediction time{time.time() - start_time}")
         return output_paths
 
 
