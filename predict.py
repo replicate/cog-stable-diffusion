@@ -1,5 +1,4 @@
 import os
-import time
 from typing import List
 
 import torch
@@ -17,7 +16,6 @@ from diffusers.pipelines.stable_diffusion.safety_checker import (
     StableDiffusionSafetyChecker,
 )
 
-from xformers.ops import MemoryEfficientAttentionFlashAttentionOp
 
 MODEL_ID = "stabilityai/stable-diffusion-2-1"
 MODEL_CACHE = "diffusers-cache"
@@ -26,7 +24,6 @@ SAFETY_MODEL_ID = "CompVis/stable-diffusion-safety-checker"
 
 class Predictor(BasePredictor):
     def setup(self):
-        start_time = time.time()
         """Load the model into memory to make running multiple predictions efficient"""
         print("Loading pipeline...")
         safety_checker = StableDiffusionSafetyChecker.from_pretrained(
@@ -44,9 +41,6 @@ class Predictor(BasePredictor):
         ).to("cuda")
 
         self.pipe.enable_xformers_memory_efficient_attention()
-        self.pipe.vae.enable_xformers_memory_efficient_attention(attention_op=None)
-        end_time = time.time()
-        print(f"setup time: {end_time - start_time}")
 
     @torch.inference_mode()
     def predict(
@@ -102,7 +96,6 @@ class Predictor(BasePredictor):
         ),
     ) -> List[Path]:
         """Run a single prediction on the model"""
-        start_time = time.time()
         if seed is None:
             seed = int.from_bytes(os.urandom(2), "big")
         print(f"Using seed: {seed}")
@@ -140,8 +133,7 @@ class Predictor(BasePredictor):
             raise Exception(
                 f"NSFW content detected. Try running it again, or try a different prompt."
             )
-        end_time = time.time()
-        print(f"inference took {end_time - start_time} time")
+
         return output_paths
 
 
