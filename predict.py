@@ -118,10 +118,12 @@ class Predictor(BasePredictor):
 
         output_paths = []
         for i, sample in enumerate(output.images):
-            if output.nsfw_content_detected and not output.nsfw_content_detected[i]:
-                output_path = f"/tmp/out-{i}.png"
-                sample.save(output_path)
-                output_paths.append(Path(output_path))
+            if output.nsfw_content_detected and output.nsfw_content_detected[i]:
+                continue
+
+            output_path = f"/tmp/out-{i}.png"
+            sample.save(output_path)
+            output_paths.append(Path(output_path))
 
         if len(output_paths) == 0:
             raise Exception(
