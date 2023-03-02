@@ -16,11 +16,7 @@ from diffusers.pipelines.stable_diffusion.safety_checker import (
     StableDiffusionSafetyChecker,
 )
 
-
-MODEL_ID = "stabilityai/stable-diffusion-2-1"
-MODEL_CACHE = "diffusers-cache"
-SAFETY_MODEL_ID = "CompVis/stable-diffusion-safety-checker"
-
+from config import MODEL_ID, MODEL_CACHE, SAFETY_MODEL_ID
 
 class Predictor(BasePredictor):
     def setup(self):
