@@ -2,12 +2,16 @@
 
 import os
 import shutil
-from diffusers import StableDiffusionPipeline
-from diffusers.pipelines.stable_diffusion.safety_checker import (
-    StableDiffusionSafetyChecker,
-)
+import sys
 
-from ..config import MODEL_ID, MODEL_CACHE, SAFETY_MODEL_ID
+from diffusers import StableDiffusionPipeline
+from diffusers.pipelines.stable_diffusion.safety_checker import \
+    StableDiffusionSafetyChecker
+
+# append project directory to path so predict.py can be imported
+sys.path.append('.')
+
+from predict import MODEL_CACHE, MODEL_ID, SAFETY_MODEL_ID
 
 if os.path.exists(MODEL_CACHE):
     shutil.rmtree(MODEL_CACHE)
