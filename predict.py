@@ -15,6 +15,7 @@ from diffusers import (
 from diffusers.pipelines.stable_diffusion.safety_checker import (
     StableDiffusionSafetyChecker,
 )
+from werkzeug.utils import secure_filename
 
 # MODEL_ID refers to a diffusers-compatible model on HuggingFace
 # e.g. prompthero/openjourney-v2, wavymulder/Analog-Diffusion, etc
@@ -126,7 +127,8 @@ class Predictor(BasePredictor):
             if output.nsfw_content_detected and output.nsfw_content_detected[i]:
                 continue
 
-            output_path = f"/tmp/out-{i}.{format}"
+            filename = secure_filename(f"out-{i}.{format}")
+            output_path = os.path.join("/tmp", filename)
             sample.save(output_path)
             output_paths.append(Path(output_path))
 
