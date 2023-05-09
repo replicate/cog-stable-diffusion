@@ -1,5 +1,9 @@
 import os
+import tempfile
+import pathlib
 from typing import List
+import queue
+import threading
 
 import torch
 from cog import BasePredictor, Input, Path
@@ -22,20 +26,46 @@ MODEL_ID = "stabilityai/stable-diffusion-2-1"
 MODEL_CACHE = "diffusers-cache"
 SAFETY_MODEL_ID = "CompVis/stable-diffusion-safety-checker"
 
+
 class Predictor(BasePredictor):
     def setup(self):
         """Load the model into memory to make running multiple predictions efficient"""
+        
         print("Loading pipeline...")
+
         safety_checker = StableDiffusionSafetyChecker.from_pretrained(
             SAFETY_MODEL_ID,
             cache_dir=MODEL_CACHE,
             local_files_only=True,
         )
+
+        self.intermediate_output_queue = queue.Queue()
+
+        def callback(iter, t, latents):
+            with torch.no_grad():
+                latents = 1 / 0.18215 * latents
+
+                # Decode the latents to images
+                image = self.pipe.vae.decode(latents).sample
+                image = (image / 2 + 0.5).clamp(0, 1)
+                image = image.cpu().permute(0, 2, 3, 1).float().numpy()
+                image = self.pipe.numpy_to_pil(image)
+
+                with tempfile.NamedTemporaryFile() as tmp:
+                    paths = []
+                    for i, img in enumerate(image):
+                        path = os.path.join(tmp.name, f"iter_{iter}_img{i}.png")
+                        img.save(path)
+                        paths.append(os.path.realpath(path))
+                    self.intermediate_output_queue.put(paths)
+
         self.pipe = StableDiffusionPipeline.from_pretrained(
             MODEL_ID,
             safety_checker=safety_checker,
             cache_dir=MODEL_CACHE,
             local_files_only=True,
+            callback=callback,
+            callback_steps=5,
         ).to("cuda")
 
     @torch.inference_mode()
@@ -103,32 +133,46 @@ class Predictor(BasePredictor):
 
         self.pipe.scheduler = make_scheduler(scheduler, self.pipe.scheduler.config)
 
-        generator = torch.Generator("cuda").manual_seed(seed)
-        output = self.pipe(
-            prompt=[prompt] * num_outputs if prompt is not None else None,
-            negative_prompt=[negative_prompt] * num_outputs
-            if negative_prompt is not None
-            else None,
-            width=width,
-            height=height,
-            guidance_scale=guidance_scale,
-            generator=generator,
-            num_inference_steps=num_inference_steps,
-        )
-
         output_paths = []
-        for i, sample in enumerate(output.images):
-            if output.nsfw_content_detected and output.nsfw_content_detected[i]:
-                continue
 
-            output_path = f"/tmp/out-{i}.png"
-            sample.save(output_path)
-            output_paths.append(Path(output_path))
+        def run_pipeline():
+            try:
+                generator = torch.Generator("cuda").manual_seed(seed)
+                output = self.pipe(
+                    prompt=[prompt] * num_outputs if prompt is not None else None,
+                    negative_prompt=[negative_prompt] * num_outputs
+                    if negative_prompt is not None
+                    else None,
+                    width=width,
+                    height=height,
+                    guidance_scale=guidance_scale,
+                    generator=generator,
+                    num_inference_steps=num_inference_steps,
+                )
 
-        if len(output_paths) == 0:
-            raise Exception(
-                f"NSFW content detected. Try running it again, or try a different prompt."
-            )
+                for i, sample in enumerate(output.images):
+                    if output.nsfw_content_detected and output.nsfw_content_detected[i]:
+                        continue
+
+                    output_path = f"/tmp/out-{i}.png"
+                    sample.save(output_path)
+                    output_paths.append(Path(output_path))
+
+                if len(output_paths) == 0:
+                    raise Exception(
+                        f"NSFW content detected. Try running it again, or try a different prompt."
+                    )
+            finally:
+                self.intermediate_output_queue.put(None)
+
+        threading.Thread(target=run_pipeline, daemon=True).start()
+
+        while True:
+            paths = self.intermediate_output_queue.get()
+            if paths is None:
+                break
+
+            yield paths
 
         return output_paths
 
