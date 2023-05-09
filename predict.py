@@ -63,6 +63,11 @@ class Predictor(BasePredictor):
             description="Prompt strength when using init image. 1.0 corresponds to full destruction of information in init image",
             default=0.8,
         ),
+        format: str = Input(
+            description="Format of the output images",
+            choices=["png", "jpg", "webp"],
+            default="png",
+        ),
         num_outputs: int = Input(
             description="Number of images to output.",
             ge=1,
@@ -121,7 +126,7 @@ class Predictor(BasePredictor):
             if output.nsfw_content_detected and output.nsfw_content_detected[i]:
                 continue
 
-            output_path = f"/tmp/out-{i}.png"
+            output_path = f"/tmp/out-{i}.{format}"
             sample.save(output_path)
             output_paths.append(Path(output_path))
 
