@@ -10,6 +10,5 @@ build:
     - "transformers==4.25.1"
     - "accelerate==0.15.0"
     - "huggingface-hub==0.13.2"
-    - "werkzeug==2.3.4"
 
 predict: "predict.py:Predictor"
