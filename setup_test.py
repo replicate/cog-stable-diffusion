@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import tempfile
 import time
+import cProfile
 
 import torch
 from diffusers import (
@@ -108,7 +109,7 @@ def load_model(
     print(f"Loading {tensors_uri}, {ram_usage}")
 
     tensor_deserializer = TensorDeserializer(
-        tensor_stream, device=device, dtype=dtype, lazy_load=True
+        tensor_stream, device=device, dtype=dtype, plaid_mode=True
     )
 
     if config_class is not None:
@@ -155,38 +156,41 @@ def load_tensorized_models():
     """
     Stolen tensorizer example for loading stable idffusion
     """
-    st = time.time()
-    device = "cuda"
-    output_prefix = "/src/tensors"
-    # ick. 
-    cache_dir = '/src/diffusers-cache/models--stabilityai--stable-diffusion-2-1/snapshots/845609e6cf0a060d8cd837297e5c169df5bff72c/'
+    with cProfile.Profile() as pr:
+        st = time.time()
+        device = "cuda"
+        output_prefix = "/src/tensors"
+        # ick. 
+        cache_dir = '/src/diffusers-cache/models--stabilityai--stable-diffusion-2-1/snapshots/845609e6cf0a060d8cd837297e5c169df5bff72c/'
 
-    # load vae, text encoder, unet, safety_checker
-    vae = load_model(output_prefix, AutoencoderKL, None, "vae", device)
-    unet = load_model(
-        output_prefix, UNet2DConditionModel, None, "unet", device
-    )
-    encoder = load_model(
-        output_prefix, CLIPTextModel, CLIPTextConfig, "text_encoder", device
-    )
-    safety_checker = load_model(output_prefix, StableDiffusionSafetyChecker, CLIPConfig, "safety_checker", device)
-
-    pipeline = StableDiffusionPipeline(
-        text_encoder=encoder,
-        vae=vae,
-        unet=unet,
-        tokenizer=AutoTokenizer.from_pretrained(
-            cache_dir, subfolder="tokenizer"
-        ),
-        scheduler=LMSDiscreteScheduler.from_pretrained(
-            cache_dir, subfolder="scheduler"
-        ),
-        safety_checker=safety_checker,
-        feature_extractor=CLIPImageProcessor.from_pretrained(
-            os.path.join(cache_dir, "feature_extractor")
+        # load vae, text encoder, unet, safety_checker
+        vae = load_model(output_prefix, AutoencoderKL, None, "vae", device)
+        unet = load_model(
+            output_prefix, UNet2DConditionModel, None, "unet", device
         )
-    ).to(device)
-    print(f"Took {time.time() - st} to load tensorized models")
+        encoder = load_model(
+            output_prefix, CLIPTextModel, CLIPTextConfig, "text_encoder", device
+        )
+        safety_checker = load_model(output_prefix, StableDiffusionSafetyChecker, CLIPConfig, "safety_checker", device)
+
+        pipeline = StableDiffusionPipeline(
+            text_encoder=encoder,
+            vae=vae,
+            unet=unet,
+            tokenizer=AutoTokenizer.from_pretrained(
+                cache_dir, subfolder="tokenizer"
+            ),
+            scheduler=LMSDiscreteScheduler.from_pretrained(
+                cache_dir, subfolder="scheduler"
+            ),
+            safety_checker=safety_checker,
+            feature_extractor=CLIPImageProcessor.from_pretrained(
+                os.path.join(cache_dir, "feature_extractor")
+            )
+        ).to(device)
+        print(f"Took {time.time() - st} to load tensorized models")
+        pr.dump_stats(f"{st:.0f}_setup.prof")
+
     return pipeline
 
 def test_stable_diffusion_generation(prompt="a big yellow dog, trending on artstation", width=512, height=512, guidance_scale=7.5, num_inference_steps=50, num_outputs=1, negative_prompt=None):
