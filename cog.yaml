@@ -11,4 +11,8 @@ build:
     - "accelerate==0.15.0"
     - "huggingface-hub==0.13.2"
 
+  run:
+    - "pip install tensorizer"
+    - "pip install ipython"
+
 predict: "predict.py:Predictor"

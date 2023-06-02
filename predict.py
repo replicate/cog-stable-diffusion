@@ -1,4 +1,5 @@
 import os
+import time
 from typing import List
 
 import torch
@@ -25,18 +26,22 @@ SAFETY_MODEL_ID = "CompVis/stable-diffusion-safety-checker"
 class Predictor(BasePredictor):
     def setup(self):
         """Load the model into memory to make running multiple predictions efficient"""
+        st = time.time()
         print("Loading pipeline...")
         safety_checker = StableDiffusionSafetyChecker.from_pretrained(
             SAFETY_MODEL_ID,
             cache_dir=MODEL_CACHE,
             local_files_only=True,
+            torch_dtype=torch.float16
         )
         self.pipe = StableDiffusionPipeline.from_pretrained(
             MODEL_ID,
             safety_checker=safety_checker,
             cache_dir=MODEL_CACHE,
             local_files_only=True,
+            torch_dtype=torch.float16
         ).to("cuda")
+        print(f"started in {time.time() - st}")
 
     @torch.inference_mode()
     def predict(
