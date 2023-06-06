@@ -1,1 +1,5 @@
 .git
+weights/
+diffusers-cache/
+load_time_tests/
+tensors/
