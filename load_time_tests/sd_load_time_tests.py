@@ -9,7 +9,7 @@ def load_with_from_pretrained(path, use_safetensors=False):
     )
 
 def load_with_tensorizer(component_map):
-    components = {"scheduler": diffusers.schedulers.scheduling_ddim.DDIMScheduler}
+    components = {"scheduler": diffusers.schedulers.scheduling_ddim.DDIMScheduler, "safety_checker": False}
     for k in component_map.keys():
         print(f'Loading {k}...')
         cls = component_map[k].get('cls')
