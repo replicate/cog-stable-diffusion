@@ -11,10 +11,11 @@ build:
     - "accelerate==0.19.0"
     - "huggingface-hub"
     - "safetensors==0.3.1"
+    - "tensorizer==1.1.0"
 
 
   run:
-    - pip install pandas
+    - pip install ipython
     - pip install pprofile  
 
 predict: "predict.py:Predictor"

@@ -28,3 +28,7 @@ test_sd_cpu_load_time:
 	@echo "Loading sd with from pretrained with safetensors"
 	python sd_load_time_tests.py --from-pretrained --safetensors
 	@echo "-------------------------"
+	@echo "Loading sd with from pretrained with tensorizer"
+	python sd_load_time_tests.py --from-pretrained --safetensors
+	@echo "-------------------------"
+
