@@ -35,7 +35,8 @@ class Predictor(BasePredictor):
         self.pipe = StableDiffusionPipeline.from_pretrained(
             "/src/weights",
             safety_checker=safety_checker,
-            torch_dtype = torch.float16
+            torch_dtype=torch.float16,
+            use_safetensors=True
         )
         print(f'loaded in {time.time() - st}')
 

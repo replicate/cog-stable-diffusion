@@ -45,6 +45,7 @@ def convert_file(
 
     dirname = os.path.dirname(sf_filename)
     os.makedirs(dirname, exist_ok=True)
+    print(f'saving: {sf_filename}')
     save_file(loaded, sf_filename, metadata={"format": "pt"})
     check_file_size(sf_filename, pt_filename)
     reloaded = load_file(sf_filename)
@@ -54,12 +55,14 @@ def convert_file(
         if not torch.equal(pt_tensor, sf_tensor):
             raise RuntimeError(f"The output tensors do not match for key {k}")
 
-
 if __name__ == "__main__":
     import glob
     for bin_fn in glob.glob('weights/**/*.bin'):
-        if 'text_encoder' or 'safety-checker' in bin_fn:
-            bin_fn = bin_fn.replace('pytorch_model', 'model')
-        st_fn = bin_fn.replace('.bin', '.safetensors')
+        if 'text_encoder' in bin_fn or 'safety_checker' in bin_fn:
+            st_fn = bin_fn.replace('pytorch_model', 'model')
+        else:
+            st_fn = bin_fn
+        st_fn = st_fn.replace('.bin', '.safetensors')
+        print(f'converting {bin_fn} to {st_fn}')
         convert_file(bin_fn, st_fn)
         os.remove(bin_fn)
