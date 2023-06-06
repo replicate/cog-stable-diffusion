@@ -5,7 +5,6 @@ prepare_jesses_way:
 	echo "Converting to safetensors"
 	python convert.py
 
-
 test_jesses_way:
 	echo "Testing model Jesse's way without safetensors"
 	python sd_load_time_tests.py --jesses-way
@@ -18,8 +17,6 @@ test_unet_loading:
 	echo "---------------------------------------------"
 	Loading unet with from pretrained with safetensors
 	python unet_load_time_tests.py --from-pretrained --safetensors
-
-
 
 test_sd_cpu_load_time:
 	@echo "---------------------------------------------"

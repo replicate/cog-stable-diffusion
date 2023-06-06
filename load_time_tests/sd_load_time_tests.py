@@ -1,14 +1,26 @@
+import time
 
 def load_with_from_pretrained(path, use_safetensors=False):
-
+    """
+    Loads Stable Diffusion pipeline, optionally including safetensors
+    """
+    st = time.time()
     txt2img_pipe = StableDiffusionPipeline.from_pretrained(
         path,
         torch_dtype=torch.float16,
         local_files_only=True,
         safety_checker=None,
     )
+    print(f"load time: {time.time() - st}")
+    txt2img_pipe.to("cuda")
+    print(f"total time: {time.time() - st}")
+    return txt2img_pipe
 
 def load_with_tensorizer(component_map):
+    """
+    Loads stable diffusion pipeline with tensorizer
+    """
+    st = time.time()
     components = {"scheduler": diffusers.schedulers.scheduling_ddim.DDIMScheduler, "safety_checker": False}
     for k in component_map.keys():
         print(f'Loading {k}...')
@@ -30,6 +42,10 @@ def load_with_tensorizer(component_map):
             components[k] = model
                 
     pipe = diffusers.StableDiffusionPipeline(**components)
+    print(f"Load time: {time.time() - st}")
+    pipe = pipe.to('cuda')
+    print(f"Total time: {time.time() - st}")
+    return pipe
 
 
 

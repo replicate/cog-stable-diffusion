@@ -27,14 +27,14 @@ pipe = StableDiffusionPipeline.from_pretrained(
 )
 
 # # Save fp16 .bin weights
-# print('Saving fp16 .bin weights')
-# saftey_checker.save_pretrained('weights/fp16/bin/safety_checker/')
-# pipe.save_pretrained('weights/fp16/bin/')
+print('Saving fp16 .bin weights')
+saftey_checker.save_pretrained('weights/fp16/bin/safety_checker/')
+pipe.save_pretrained('weights/fp16/bin/')
 
-# print('Saving fp16 .safetensors weights')
-# # Save fp16 .safetensor weights
-# saftey_checker.save_pretrained('weights/fp16/safetensors/safety_checker', safe_serialization=True)
-# pipe.save_pretrained('weights/fp16/safetensors/', safe_serialization=True)
+print('Saving fp16 .safetensors weights')
+# Save fp16 .safetensor weights
+saftey_checker.save_pretrained('weights/fp16/safetensors/safety_checker', safe_serialization=True)
+pipe.save_pretrained('weights/fp16/safetensors/', safe_serialization=True)
 
 
 ## Tensorize models
