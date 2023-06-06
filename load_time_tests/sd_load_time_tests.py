@@ -15,8 +15,7 @@ def load_with_tensorizer(component_map):
         cls = component_map[k].get('cls')
         path = component_map[k].get('path')
         tensorized_weights = component_map[k].get('tensorized_weights', None)
-        print('wtf')
-        print(path)
+
         if tensorized_weights:
             with no_init_or_tensor():
                 model = cls.from_pretrained(path)
@@ -43,7 +42,7 @@ if __name__ == "__main__":
     import torch
     import diffusers
     import transformers
-
+    
 
 
     parser = argparse.ArgumentParser()
