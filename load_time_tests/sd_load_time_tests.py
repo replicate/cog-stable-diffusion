@@ -21,18 +21,22 @@ def load_with_from_pretrained(path, use_safetensors=False, device='cpu', load_sa
     """
     st = time.time()
     safety_checker = None
-    if load_safety_checker:
-        safety_checker = StableDiffusionSafetyChecker.from_pretrained(
-            os.path.join(path, 'safety_checker'), 
-            torch_dtype=torch.float16,
-            local_files_only=True
-        )
-    
+    # if load_safety_checker:
+    #     safety_checker = StableDiffusionSafetyChecker.from_pretrained(
+    #         os.path.join(path, 'safety_checker'), 
+    #         torch_dtype=torch.float16,
+    #         local_files_only=True
+    #     )
+    # print(f"loaded safety checker in: {time.time() - st}")
+
+    # JH: It is much faster to load the safety checker separately, then pass it in to the pipeline
+    # 
     txt2img_pipe = StableDiffusionPipeline.from_pretrained(
         path,
         torch_dtype=torch.float16,
         local_files_only=True,
-        safety_checker=safety_checker
+        # safety_checker=safety_checker
+        requires_safety_checker=load_safety_checker,
     )
     print(f"load time: {time.time() - st}")
     if device=="cuda":
