@@ -28,7 +28,34 @@ test_sd_cpu_load_time:
 	@echo "Loading sd with from pretrained with safetensors"
 	python sd_load_time_tests.py --from-pretrained --safetensors
 	@echo "-------------------------"
-	@echo "Loading sd with from pretrained with tensorizer"
-	python sd_load_time_tests.py --from-pretrained --safetensors
+	@echo "Loading sd with tensorizer"
+	python sd_load_time_tests.py --tensorizer
 	@echo "-------------------------"
 
+test_sd_safe_load_time:
+	@echo "---------------------------------------------"
+	@echo "Testing sd load time on cpu w/safety checker"
+	@echo "-------------------------"
+	@echo "Loading sd with from pretrained without safetensors"
+	python sd_load_time_tests.py --from-pretrained --safety-checker
+	@echo "-------------------------"
+	@echo "Loading sd with from pretrained with safetensors"
+	python sd_load_time_tests.py --from-pretrained --safetensors --safety-checker
+	@echo "-------------------------"
+	@echo "Loading sd with tensorizer"
+	python sd_load_time_tests.py --tensorizer --safety-checker
+	@echo "-------------------------"
+
+test_sd_full_load_time:
+	@echo "---------------------------------------------"
+	@echo "Testing sd load time on gpu w/safety checker"
+	@echo "-------------------------"
+	@echo "Loading sd with from pretrained without safetensors"
+	python sd_load_time_tests.py --from-pretrained --safety-checker --cuda
+	@echo "-------------------------"
+	@echo "Loading sd with from pretrained with safetensors"
+	python sd_load_time_tests.py --from-pretrained --safetensors --safety-checker --cuda
+	@echo "-------------------------"
+	@echo "Loading sd with tensorizer"
+	python sd_load_time_tests.py --tensorizer --safety-checker --cuda
+	@echo "-------------------------"

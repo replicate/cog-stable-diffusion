@@ -4,9 +4,7 @@ import os
 import time
 import timeit
 
-import diffusers
 import torch
-import transformers
 from diffusers import (AutoencoderKL, LMSDiscreteScheduler,
                        StableDiffusionPipeline, UNet2DConditionModel)
 from diffusers.pipelines.stable_diffusion.safety_checker import \
@@ -17,55 +15,33 @@ from transformers import (AutoTokenizer, CLIPConfig, CLIPImageProcessor,
                           CLIPTextConfig, CLIPTextModel)
 
 
-def load_with_from_pretrained(path, use_safetensors=False):
+def load_with_from_pretrained(path, use_safetensors=False, device='cpu', load_safety_checker=False):
     """
     Loads Stable Diffusion pipeline, optionally including safetensors
     """
     st = time.time()
+    safety_checker = None
+    if load_safety_checker:
+        safety_checker = StableDiffusionSafetyChecker.from_pretrained(
+            os.path.join(path, 'safety_checker'), 
+            torch_dtype=torch.float16,
+            local_files_only=True
+        )
+    
     txt2img_pipe = StableDiffusionPipeline.from_pretrained(
         path,
         torch_dtype=torch.float16,
         local_files_only=True,
-        safety_checker=None,
+        safety_checker=safety_checker
     )
     print(f"load time: {time.time() - st}")
-    txt2img_pipe.to("cuda")
-    print(f"total time: {time.time() - st}")
+    if device=="cuda":
+        txt2img_pipe.to("cuda")
+        print(f"total time: {time.time() - st}")
     return txt2img_pipe
 
-def load_with_tensorizer(component_map):
-    """
-    Loads stable diffusion pipeline with tensorizer
-    """
-    st = time.time()
-    components = {"scheduler": diffusers.schedulers.scheduling_ddim.DDIMScheduler, "safety_checker": False}
-    for k in component_map.keys():
-        print(f'Loading {k}...')
-        cls = component_map[k].get('cls')
-        path = component_map[k].get('path')
-        tensorized_weights = component_map[k].get('tensorized_weights', None)
 
-        if tensorized_weights:
-            with no_init_or_tensor():
-                model = cls.from_pretrained(path)
-            
-            deserializer = TensorDeserializer(tensorized_weights, plaid_mode=True)
-            deserializer.load_into_module(model)
-
-            components[k] = model
-        
-        else:
-            model = cls.from_pretrained(path)
-            components[k] = model
-                
-    pipe = diffusers.StableDiffusionPipeline(**components)
-    print(f"Load time: {time.time() - st}")
-    pipe = pipe.to('cuda')
-    print(f"Total time: {time.time() - st}")
-    return pipe
-
-
-def load_model(
+def _load_single_tensorized_model(
     path_uri: str,
     model_class,
     config_class = None,
@@ -74,8 +50,7 @@ def load_model(
     dtype = None,
 ) -> torch.nn.Module:
     """
-    Given a path prefix, load the tensorized model with a custom extension. 
-    Lifted from tensorizer examples - basically a general purpose diffusers/transformers module instantiator
+    Lifted from tensorizer examples - basically a general purpose diffusers/transformers module instantiator w/tensorizer
 
     Args:
         path_uri: path to the model. Can be a local path or a URI
@@ -95,14 +70,15 @@ def load_model(
     begin_load = time.time()
     ram_usage = get_mem_usage()
 
-    config_uri = f"{path_uri}/{model_prefix}_config.json"
-    tensors_uri = f"{path_uri}/{model_prefix}.tensors"
+    config_uri = f"{path_uri}/{model_prefix}/config.json"
+    tensors_uri = f"{path_uri}/{model_prefix}/{model_prefix}.tensors"
     tensor_stream = stream_io.open_stream(tensors_uri)
 
-    print(f"Loading {tensors_uri}, {ram_usage}")
+   #print(f"Loading {tensors_uri}, {ram_usage}")
 
+    plaid_mode = True if device == 'cuda' else False
     tensor_deserializer = TensorDeserializer(
-        tensor_stream, device=device, dtype=dtype, plaid_mode=True
+        tensor_stream, device=device, dtype=dtype, plaid_mode=plaid_mode
     )
 
     if config_class is not None:
@@ -133,56 +109,57 @@ def load_model(
 
     tensor_deserializer.load_into_module(model)
 
-    tensor_load_s = time.time() - begin_load
-    rate_str = convert_bytes(
-        tensor_deserializer.total_bytes_read / tensor_load_s
-    )
-    tensors_sz = convert_bytes(tensor_deserializer.total_bytes_read)
-    print(
-        f"Model tensors loaded in {tensor_load_s:0.2f}s, read "
-        f"{tensors_sz} @ {rate_str}/s, {get_mem_usage()}"
-    )
+    # tensor_load_s = time.time() - begin_load
+    # rate_str = convert_bytes(
+    #     tensor_deserializer.total_bytes_read / tensor_load_s
+    # )
+    # tensors_sz = convert_bytes(tensor_deserializer.total_bytes_read)
+    # print(
+    #     f"Model tensors loaded in {tensor_load_s:0.2f}s, read "
+    #     f"{tensors_sz} @ {rate_str}/s, {get_mem_usage()}"
+    # )
 
     return model
     
-def load_tensorized_models():
+def load_tensorized_models(path="/weights/fp16/tensors", load_safety_checker=False, device="cpu"):
     """
     Stolen tensorizer example for loading stable idffusion
     """
     st = time.time()
-    device = "cuda"
-    tensor_dir = "/weights/fp16/tensors"
 
     # load all torch models
-    vae = load_model(tensor_dir, AutoencoderKL, None, "vae", device)
-    unet = load_model(
-        tensor_dir, UNet2DConditionModel, None, "unet", device
+    vae = _load_single_tensorized_model(path, AutoencoderKL, None, "vae", device)
+    unet = _load_single_tensorized_model(
+        path, UNet2DConditionModel, None, "unet", device
     )
-    encoder = load_model(
-        tensor_dir, CLIPTextModel, CLIPTextConfig, "text_encoder", device
+    encoder = _load_single_tensorized_model(
+        path, CLIPTextModel, CLIPTextConfig, "text_encoder", device
     )
-    safety_checker = load_model(tensor_dir, StableDiffusionSafetyChecker, CLIPConfig, "safety_checker", device)
+    safety_checker = None
+    if load_safety_checker:
+        safety_checker = _load_single_tensorized_model(path, StableDiffusionSafetyChecker, CLIPConfig, "safety_checker", device)
 
     pipeline = StableDiffusionPipeline(
         text_encoder=encoder,
         vae=vae,
         unet=unet,
         tokenizer=AutoTokenizer.from_pretrained(
-            tensor_dir, subfolder="tokenizer"
+            path, subfolder="tokenizer"
         ),
         scheduler=LMSDiscreteScheduler.from_pretrained(
-            tensor_dir, subfolder="scheduler"
+            path, subfolder="scheduler"
         ),
         safety_checker=safety_checker,
         feature_extractor=CLIPImageProcessor.from_pretrained(
-            os.path.join(tensor_dir, "feature_extractor")
+            os.path.join(path, "feature_extractor")
         )
-    ).to(device)
+    )
+
+    if device == "cuda":
+        pipeline = pipeline.to(device)
     print(f"Took {time.time() - st} to load tensorized models")
 
     return pipeline
-
-
 
 
 
@@ -192,83 +169,46 @@ if __name__ == "__main__":
     parser.add_argument('--from-pretrained', action='store_true')
     parser.add_argument('--safetensors', action='store_true')
     parser.add_argument('--tensorizer', action='store_true')
-    parser.add_argument('--tensorizer_2', action='store_true')
     parser.add_argument('--accelerate', action='store_true')
+    parser.add_argument('--safety-checker', action='store_true')
+    parser.add_argument('--cuda', action='store_true')
     args = parser.parse_args()
+
+    device = 'cuda' if args.cuda else 'cpu'
+    kwargs = dict(load_safety_checker=args.safety_checker, device=device)
 
     # Test load times to CPU
     if args.from_pretrained and args.safetensors:
         load_fn = load_with_from_pretrained
-        path = 'weights/fp16/safetensors/'
-        kwargs = dict(path=path, use_safetensors=args.safetensors)
+        kwargs['path'] = '/src/weights/fp16/safetensors/'
+        kwargs['use_safetensors'] = args.safetensors
 
-        print(f"Loading from {path} with load_fn={load_fn} and use_safetensors={args.safetensors}")
+        #print(f"Loading from {kwargs['path']} with load_fn={load_fn} and use_safetensors={args.safetensors}")
+        print(f"Loading with {kwargs}")
         elpsd = timeit.timeit(lambda: load_fn(**kwargs), number=1)
 
     elif args.from_pretrained and not args.safetensors:
         load_fn = load_with_from_pretrained
-        path = 'weights/fp16/bin/'
-        kwargs = dict(path=path, use_safetensors=args.safetensors)
+        kwargs['path'] = '/src/weights/fp16/bin/'
+        kwargs['use_safetensors'] = args.safetensors
 
-        print(f"Loading from {path} with load_fn={load_fn} and use_safetensors={args.safetensors}")
+        #print(f"Loading from {kwargs['path']} with load_fn={load_fn} and use_safetensors={args.safetensors}")
+        print(f"Loading with {kwargs}")
         elpsd = timeit.timeit(lambda: load_fn(**kwargs), number=1)
     
-    elif args.tensorizer_2:
-        load_fn = load_tensorized_models
-        path = 'weights/fp16/tensors'
-        print(f"Loading from {path} with load_fn={load_fn}")
-        elpsd = timeit.timeit(lambda: load_fn(**kwargs), number=1)
-
-
     elif args.tensorizer:
-        from tensorizer import TensorDeserializer
-        from tensorizer.utils import no_init_or_tensor
-
-        base_path = 'weights/fp16/tensors/'
-        component_map = {
-            'vae': {
-                    'tensorized_weights': os.path.join(base_path, 'vae', 'vae.tensors'),
-                    'path': os.path.join(base_path, 'vae'),
-                    'cls': diffusers.AutoencoderKL
-                },
-            'text_encoder': {
-                    'tensorized_weights': os.path.join(base_path, 'text_encoder', 'text_encoder.tensors'),
-                    'path': os.path.join(base_path, 'text_encoder'),
-                    'cls': transformers.models.clip.modeling_clip.CLIPTextModel,
-                },
-            'unet': {
-                    'tensorized_weights': os.path.join(base_path, 'unet', 'unet.tensors'),
-                    'path': os.path.join(base_path, 'unet'),
-                    'cls': diffusers.models.unet_2d_condition.UNet2DConditionModel
-                },
-            'safety_checker': {
-                    'tensorized_weights': os.path.join(base_path, 'safety_checker', 'safety_checker.tensors'),
-                    'path': os.path.join(base_path, 'safety_checker'),
-                    'cls': diffusers.pipelines.stable_diffusion.safety_checker.StableDiffusionSafetyChecker
-                },
-            'tokenizer': {
-                    'path': os.path.join(base_path, 'tokenizer'),
-                    'cls': transformers.models.clip.tokenization_clip.CLIPTokenizer,
-                },
-            'feature_extractor': {
-                    'path': os.path.join(base_path, 'feature_extractor'),
-                    'cls': transformers.models.clip.image_processing_clip.CLIPImageProcessor,
-                },
-        }
-
-        load_fn = load_with_tensorizer
-        kwargs = dict(component_map=component_map)
-
-        print(f"Loading from {base_path} with load_fn={load_fn}")
+        load_fn = load_tensorized_models
+        kwargs['path'] = '/src/weights/fp16/tensors'
+        #print(f"Loading from {kwargs['path']} with load_fn={load_fn}")
+        print(f"Loading with {kwargs}")
         elpsd = timeit.timeit(lambda: load_fn(**kwargs), number=1)
-
 
     elif args.accelerate and args.safetensors:
         load_fn = load_with_accelerate
-        path = 'weights/fp16/safetensors/unet'
-        kwargs = dict(path=path, use_safetensors=args.safetensors)
+        kwargs['path'] = 'weights/fp16/safetensors/unet'
+        kwargs['use_safetensors'] = args.use_safetensors
 
-        print(f"Loading from {path} with load_fn={load_fn} and use_safetensors={args.safetensors}")
+        print(f"Loading from {kwargs['path']} with load_fn={load_fn} and use_safetensors={args.safetensors}")
         elpsd = timeit.timeit(lambda: load_fn(**kwargs), number=1)
     
     print("Elapsed time: ", elpsd, " seconds")
