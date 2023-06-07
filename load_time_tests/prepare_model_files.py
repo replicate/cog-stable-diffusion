@@ -10,6 +10,8 @@ from diffusers import StableDiffusionPipeline
 from diffusers.pipelines.stable_diffusion.safety_checker import \
     StableDiffusionSafetyChecker
 
+from tensorizer import TensorSerializer
+
 MODEL_ID = "stabilityai/stable-diffusion-2-1"
 MODEL_CACHE = "diffusers-cache"
 SAFETY_MODEL_ID = "CompVis/stable-diffusion-safety-checker"
@@ -58,6 +60,13 @@ for k, component in pipe.components.items():
             'cls': component.__class__.__name__,
             'module': component.__module__,
             }
+    
+# Save safety checker tensors
+
+path = os.path.join(tensorized_weights_base_path, 'safety_checker', f"safety_checker.tensors")
+serializer = TensorSerializer(path)
+serializer.write_module(safety_checker)
+serializer.close()
 
 # remove .bin from tensors file
 for torch_binary in glob.glob('weights/fp16/tensors/**/*.bin'):
