@@ -1,0 +1,7 @@
+diffusers
+torch
+ftfy
+scipy
+transformers
+accelerate
+huggingface-hub
