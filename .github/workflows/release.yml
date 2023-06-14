@@ -18,6 +18,9 @@ jobs:
       - name: Free disk space
         uses: jlumbroso/free-disk-space@main
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
       - name: Install Cog and NVIDIA drivers
         run: |
           curl https://replicate.github.io/codespaces/scripts/install-cog.sh | bash
