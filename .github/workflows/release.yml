@@ -25,6 +25,11 @@ jobs:
         run: |
           curl https://replicate.github.io/codespaces/scripts/install-cog.sh | bash
           
+      - name: Print Docker and Cog version info
+        run: |
+          docker version
+          cog --version
+
       - name: Download weights
         run: |
           cog run script/download-weights
