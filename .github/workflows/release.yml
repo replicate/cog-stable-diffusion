@@ -18,24 +18,15 @@ jobs:
       - name: Free disk space
         uses: jlumbroso/free-disk-space@main
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
-
-      - name: Install Python dependencies
-        run: |
-          pip install -r requirements.txt
-
-      - name: Download weights
-        run: |
-          script/download-weights
-
       - name: Install Cog
         run: |
           sudo curl -o /usr/local/bin/cog -L https://github.com/replicate/cog/releases/latest/download/cog_`uname -s`_`uname -m`
           sudo chmod +x /usr/local/bin/cog
 
+      - name: Download weights
+        run: |
+          cog run script/download-weights
+  
       - name: Log in to Replicate
         env:
           REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
