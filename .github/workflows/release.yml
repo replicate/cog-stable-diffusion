@@ -21,14 +21,35 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Install Cog and NVIDIA drivers
+      - name: Install Cog v0.8.0-beta3
         run: |
-          curl https://replicate.github.io/codespaces/scripts/install-cog.sh | bash
-          
-      - name: Print Docker and Cog version info
+          sudo curl -o /usr/local/bin/cog -L https://github.com/replicate/cog/releases/download/v0.8.0-beta3/cog_Linux_x86_64
+          sudo chmod +x /usr/local/bin/cog
+          cog --version
+
+      - name: Install nvidia-docker
         run: |
           docker version
-          cog --version
+
+          pushd /tmp
+          mkdir install-nvidia-docker
+          cd install-nvidia-docker
+
+          distribution=$(. /etc/os-release;echo $ID$VERSION_ID) \
+              && curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
+              && curl -s -L https://nvidia.github.io/libnvidia-container/$distribution/libnvidia-container.list | \
+                  sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+                  sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+          sudo apt-get update
+          apt-get download nvidia-container-toolkit-base nvidia-container-toolkit libnvidia-container-tools libnvidia-container1 nvidia-docker2
+          sudo dpkg  --ignore-depends=docker-ce -i *.deb
+
+          popd
+
+          # restart docker
+          sudo rm -f /var/run/docker.pid
+          sudo killall -9 dockerd
+          sudo bash -c "nohup dockerd &>/var/log/dockerd.log &"
 
       - name: Download weights
         run: |
