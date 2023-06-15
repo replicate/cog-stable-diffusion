@@ -1,4 +1,4 @@
-name: Release
+name: Push model to Replicate
 
 # This workflow is triggered manually from the GitHub website.
 # To run it, click the "Actions" tab on the repo page.
@@ -10,7 +10,7 @@ on:
         description: The name of the Replicate model to publish, in the format `username-or-org/modelname`.
 
 jobs:
-  release:
+  push:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -28,6 +28,7 @@ jobs:
         run: |
           curl https://replicate.github.io/codespaces/scripts/install-cog.sh | bash
           
+      # This version of Cog adds support `cog run` on non-GPU environments like GitHub Actions' default runners
       - name: Install Cog v0.8.0-beta3
         run: |
           sudo curl -o /usr/local/bin/cog -L https://github.com/replicate/cog/releases/download/v0.8.0-beta3/cog_Linux_x86_64
@@ -38,7 +39,7 @@ jobs:
           docker version
           cog --version
 
-      - name: Download weights
+      - name: Download model weights from HuggingFace
         run: |
           cog run script/download-weights
   
