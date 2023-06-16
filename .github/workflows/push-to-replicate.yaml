@@ -7,49 +7,51 @@ on:
     inputs:
       model_name:
         required: true
-        description: The name of the Replicate model to publish, in the format `username-or-org/modelname`.
+        description: "The name of the Replicate model to publish, e.g `username/modelname`. The model must already exist on Replicate."
 
 jobs:
   push_to_replicate:
-    # Custom organization runners with 64-cores, 256 GB RAM, 2040 GB SSD
-    runs-on: big-runner-for-zeke    
+    
+    # Custom runner with more CPU, memory, and disk than default runners
+    runs-on: ubuntu-latest-64-cores
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Check out code
+        uses: actions/checkout@v3
 
-      # - name: Free disk space
-      #   uses: jlumbroso/free-disk-space@main
-      #   with:
-      #     large-packages: false
-      #     tool-cache: false
-
-      - name: Set up Docker Buildx
+      - name: Set up Docker buildx
         uses: docker/setup-buildx-action@v2
-
-      - name: Install Cog and NVIDIA drivers
-        run: |
-          curl https://replicate.github.io/codespaces/scripts/install-cog.sh | bash
+  
+      - name: Install NVIDIA CUDA Toolkit
+        uses: Jimver/cuda-toolkit@v0.2.10
           
-      # This version of Cog adds support `cog run` on non-GPU environments like GitHub Actions' default runners
-      - name: Install Cog v0.8.0-beta3
+      # This version of Cog adds support for `cog run` on non-GPU environments (like GitHub Actions' default runners)
+      - name: Install Cog
         run: |
           sudo curl -o /usr/local/bin/cog -L https://github.com/replicate/cog/releases/download/v0.8.0-beta3/cog_Linux_x86_64
           sudo chmod +x /usr/local/bin/cog
-          
-      - name: Print Docker and Cog version info
-        run: |
-          docker version
           cog --version
 
-      - name: Download model weights from HuggingFace
-        run: |
-          cog run script/download-weights
-  
       - name: Log in to Replicate
         env:
           REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
         run: |
           echo $REPLICATE_API_TOKEN | cog login --token-stdin
 
+      - name: Download model weights from HuggingFace
+        run: |
+          cog run script/download-weights
+
       - name: Push to Replicate
         run: |
           cog push r8.im/${{ inputs.model_name }}
+
+      - name: Open GitHub issue to notify users
+        uses: dacbd/create-issue-action@main
+        with:
+          token: ${{ github.token }}
+          title: 🚀 New version pushed to Replicate
+          body: |
+            Head's up: @${{ github.actor }} kicked off a workflow that pushed a new version of [${{ inputs.model_name }}](https://replicate.com/${{ inputs.model_name }}/versions) to Replicate!
+
+            Git commit: [${{ github.sha }}](https://github.com/${{github.repository}}/commit/${{github.sha}}).
