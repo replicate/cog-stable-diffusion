@@ -30,12 +30,14 @@ class Predictor(BasePredictor):
             SAFETY_MODEL_ID,
             cache_dir=MODEL_CACHE,
             local_files_only=True,
+            torch_dtype=torch.float16
         )
         self.pipe = StableDiffusionPipeline.from_pretrained(
             MODEL_ID,
             safety_checker=safety_checker,
             cache_dir=MODEL_CACHE,
             local_files_only=True,
+            torch_dtype=torch.float16
         ).to("cuda")
 
     @torch.inference_mode()

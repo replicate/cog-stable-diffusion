@@ -1,14 +1,14 @@
 build:
   gpu: true
-  cuda: "11.6"
+  cuda: "12.0"
   python_version: "3.11.1"
   python_packages:
-    - "diffusers==0.11.1"
-    - "torch==1.13.0"
+    - "diffusers"
+    - "torch==2.0.1"
     - "ftfy==6.1.1"
     - "scipy==1.9.3"
-    - "transformers==4.25.1"
-    - "accelerate==0.15.0"
-    - "huggingface-hub==0.13.2"
+    - "transformers"
+    - "accelerate"
+    - "huggingface-hub"
 
 predict: "predict.py:Predictor"
