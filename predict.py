@@ -16,11 +16,8 @@ from diffusers.pipelines.stable_diffusion.safety_checker import (
     StableDiffusionSafetyChecker,
 )
 
-# MODEL_ID refers to a diffusers-compatible model on HuggingFace
-# e.g. prompthero/openjourney-v2, wavymulder/Analog-Diffusion, etc
-MODEL_ID = "stabilityai/stable-diffusion-2-1"
-MODEL_CACHE = "diffusers-cache"
-SAFETY_MODEL_ID = "CompVis/stable-diffusion-safety-checker"
+from version import MODEL_CACHE, MODEL_ID, REVISION, SAFETY_MODEL_ID
+
 
 class Predictor(BasePredictor):
     def setup(self):
@@ -30,14 +27,15 @@ class Predictor(BasePredictor):
             SAFETY_MODEL_ID,
             cache_dir=MODEL_CACHE,
             local_files_only=True,
-            torch_dtype=torch.float16
+            torch_dtype=torch.float16,
         )
         self.pipe = StableDiffusionPipeline.from_pretrained(
             MODEL_ID,
             safety_checker=safety_checker,
+            revision=REVISION,
             cache_dir=MODEL_CACHE,
             local_files_only=True,
-            torch_dtype=torch.float16
+            torch_dtype=torch.float16,
         ).to("cuda")
 
     @torch.inference_mode()
