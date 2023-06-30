@@ -22,6 +22,8 @@ COPY ./other-requirements.txt /requirements.txt
 # pip install torch; pip freeze | grep -v nvidia-cusolver | pip install --no-deps
 # RUN pip install -t /dep torch==2.0.1+cu118 --extra-index-url https://download.pytorch.org/whl/cu118
 RUN pip install -t /dep -r /requirements.txt --no-deps
+COPY .cog/tmp/*/cog-0.0.1.dev-py3-none-any.whl /tmp/cog-0.0.1.dev-py3-none-any.whl
+RUN pip install -t /dep /tmp/cog-0.0.1.dev-py3-none-any.whl --no-deps
 
 FROM deps as model
 WORKDIR /src
