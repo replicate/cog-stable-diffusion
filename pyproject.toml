@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "sd"
+version = "0.0"
+description = ""
+authors = []
+
+[tool.poetry.dependencies]
+python = "^3.11"
+accelerate = "*"
+diffusers = "*"
+huggingface-hub = "*"
+scipy = "==1.9.3"
+ftfy = "==6.1.1"
+transformers = "*"
+torch = { url = "https://download.pytorch.org/whl/cu118/torch-2.0.1%2Bcu118-cp311-cp311-linux_x86_64.whl" }

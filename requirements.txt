@@ -1,6 +1,0 @@
-diffusers
-ftfy==6.1.1
-scipy==1.9.3
-transformers
-accelerate
-huggingface-hub
