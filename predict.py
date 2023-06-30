@@ -15,6 +15,7 @@ from diffusers import (
 from diffusers.pipelines.stable_diffusion.safety_checker import (
     StableDiffusionSafetyChecker,
 )
+from transformers import CLIPFeatureExtractor
 
 from version import MODEL_CACHE, MODEL_ID, REVISION, SAFETY_MODEL_ID
 
@@ -29,9 +30,15 @@ class Predictor(BasePredictor):
             local_files_only=True,
             torch_dtype=torch.float16,
         )
+        # ? wasn't previously necessary 
+        feature_extractor=CLIPFeatureExtractor.from_pretrained("openai/clip-vit-base-patch32",
+            cache_dir=MODEL_CACHE,
+            torch_dtype=torch.float16,
+        )
         self.pipe = StableDiffusionPipeline.from_pretrained(
             MODEL_ID,
             safety_checker=safety_checker,
+            feature_extractor=feature_extractor,
             revision=REVISION,
             cache_dir=MODEL_CACHE,
             local_files_only=True,

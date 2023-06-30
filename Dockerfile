@@ -23,10 +23,10 @@ RUN pip install -t /dep -r /requirements.txt --no-deps
 COPY .cog/tmp/*/cog-0.0.1.dev-py3-none-any.whl /tmp/cog-0.0.1.dev-py3-none-any.whl
 RUN pip install -t /dep /tmp/cog-0.0.1.dev-py3-none-any.whl --no-deps
 
-FROM python:3.11-slim as deps
+FROM python:3.11-slim as model
 WORKDIR /src
 COPY --from=torch /dep/ /src/
-RUN pip install -t /src diffsers
+RUN pip install -t /src diffusers transformers safetensors
 # COPY ./diffusers-requirements.txt /requirements.txt
 # RUN pip install -t /src -r /requirements.txt --no-deps # ?
 COPY ./version.py ./script/download-weights /src/
