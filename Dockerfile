@@ -19,16 +19,14 @@ RUN pip install -t /dep -r /requirements.txt --no-deps
 FROM python:3.11-slim as deps
 WORKDIR /dep
 COPY ./other-requirements.txt /requirements.txt
-# pip install torch; pip freeze | grep -v nvidia-cusolver | pip install --no-deps
-# RUN pip install -t /dep torch==2.0.1+cu118 --extra-index-url https://download.pytorch.org/whl/cu118
 RUN pip install -t /dep -r /requirements.txt --no-deps
 COPY .cog/tmp/*/cog-0.0.1.dev-py3-none-any.whl /tmp/cog-0.0.1.dev-py3-none-any.whl
 RUN pip install -t /dep /tmp/cog-0.0.1.dev-py3-none-any.whl --no-deps
 
 FROM deps as model
 WORKDIR /src
-COPY --from=torch /dep/ /src/
-COPY --from=deps /dep/ /src/
+COPY ./diffusers-requirements.txt /requirements.txt
+RUN pip install -t /src-r /requirements.txt --no-deps
 COPY ./version.py ./script/download-weights /src/
 RUN python3 download-weights 
 
@@ -41,4 +39,4 @@ COPY --from=deps /dep/ /src/
 WORKDIR /src
 EXPOSE 5000
 CMD ["python", "-m", "cog.server.http"]
-COPY ./*py /src
+COPY ./*py ./cog.yaml /src
