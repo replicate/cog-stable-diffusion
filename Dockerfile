@@ -25,6 +25,7 @@ RUN pip install -t /dep /tmp/cog-0.0.1.dev-py3-none-any.whl --no-deps
 
 FROM deps as model
 WORKDIR /src
+COPY --from=torch /dep/ /src/
 COPY ./diffusers-requirements.txt /requirements.txt
 RUN pip install -t /src-r /requirements.txt --no-deps
 COPY ./version.py ./script/download-weights /src/

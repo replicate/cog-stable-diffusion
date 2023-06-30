@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+import torch
 import os
 import shutil
 import sys
@@ -20,10 +20,12 @@ os.makedirs(MODEL_CACHE, exist_ok=True)
 saftey_checker = StableDiffusionSafetyChecker.from_pretrained(
     SAFETY_MODEL_ID,
     cache_dir=MODEL_CACHE,
+    torch_dtype=torch.float16,
 )
 
 pipe = StableDiffusionPipeline.from_pretrained(
     MODEL_ID,
     cache_dir=MODEL_CACHE,
     revision=REVISION
+    torch_dtype=torch.float16,
 )
