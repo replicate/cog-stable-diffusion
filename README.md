@@ -1,3 +1,6 @@
+still kind of a manual process, install py3.11 on a machine, poetry lock, wormhole requirements.txt and poetry.lock back, run depedency_splitter.py
+
+
 # Stable Diffusion v2 Cog model
 
 [![Replicate](https://replicate.com/stability-ai/stable-diffusion/badge)](https://replicate.com/stability-ai/stable-diffusion) 

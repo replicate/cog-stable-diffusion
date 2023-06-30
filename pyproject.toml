@@ -13,3 +13,4 @@ scipy = "==1.9.3"
 ftfy = "==6.1.1"
 transformers = "*"
 torch = { url = "https://download.pytorch.org/whl/cu118/torch-2.0.1%2Bcu118-cp311-cp311-linux_x86_64.whl" }
+cog = { file = ".cog/tmp/build503992272/cog-0.0.1.dev-py3-none-any.whl" }

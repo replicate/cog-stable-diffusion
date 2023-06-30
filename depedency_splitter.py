@@ -2,7 +2,7 @@ import re
 import toml
 
 # poetry export --without-hashes > poetry-requirements.txt
-requirements = open("poetry-requirements.txt").read().trim().split("\n")
+requirements = open("poetry-requirements.txt").read().strip().split("\n")
 # poetry lock
 lock_data = toml.load("poetry.lock")
 
@@ -25,10 +25,11 @@ torch_deps.add("torch")
 
 # https://peps.python.org/pep-0508/#names
 # '^([A-Z0-9]|[A-Z0-9][A-Z0-9._-]*[A-Z0-9])'
+# must consist entirely of ASCII letters, numbers, ., -, and/or _
 pattern = re.compile("^[-\\w\\.]+")
 require_lines = [(pattern.search(line).group(), line) for line in requirements if line]
 
 torch = "\n".join(line for name, line in require_lines if name in torch_deps)
-other = "\n".join(line for name, line in require_lines if name not in torch_deps)
+other = "\n".join(line for name, line in require_lines if name not in torch_deps and name != "cog")
 open("torch-requirements.txt", "w").write(torch)
 open("other-requirements.txt", "w").write(other)
