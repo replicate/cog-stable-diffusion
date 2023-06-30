@@ -24,8 +24,8 @@ RUN pip install -t /dep -r /requirements.txt && cat /tmp/already_installed.txt |
 
 FROM deps as model
 WORKDIR /src
-COPY ./version.py ./script/download-weights.py /src/
-RUN python3 download-weights.py 
+COPY ./version.py ./script/download-weights /src/
+RUN python3 download-weights 
 
 FROM python:3.11-slim
 ENV DEBIAN_FRONTEND=noninteractive
