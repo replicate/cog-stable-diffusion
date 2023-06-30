@@ -24,6 +24,7 @@ add_subdeps("torch", torch_deps)
 diffusers_deps = set()
 add_subdeps("diffusers", diffusers_deps)
 add_subdeps("safetensors", diffusers_deps)
+# might need to do something with Pillow and extras_require
 diffusers_deps -= torch_deps
 
 # https://peps.python.org/pep-0508/#names

@@ -26,6 +26,6 @@ saftey_checker = StableDiffusionSafetyChecker.from_pretrained(
 pipe = StableDiffusionPipeline.from_pretrained(
     MODEL_ID,
     cache_dir=MODEL_CACHE,
-    revision=REVISION
+    revision=REVISION,
     torch_dtype=torch.float16,
 )
