@@ -3,4 +3,6 @@
 MODEL_ID = "stabilityai/stable-diffusion-2-1"
 MODEL_CACHE = "diffusers-cache"
 SAFETY_MODEL_ID = "CompVis/stable-diffusion-safety-checker"
-REVISION = "fp16"
+# these are both fp16 safetensors I made
+REVISION = "refs/pr/71"
+SAFETY_REVISION = "refs/pr/41"

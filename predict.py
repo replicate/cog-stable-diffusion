@@ -17,7 +17,7 @@ from diffusers.pipelines.stable_diffusion.safety_checker import (
 )
 from transformers import CLIPFeatureExtractor
 
-from version import MODEL_CACHE, MODEL_ID, REVISION, SAFETY_MODEL_ID
+from version import MODEL_CACHE, MODEL_ID, REVISION, SAFETY_MODEL_ID, SAFETY_REVISION
 
 
 class Predictor(BasePredictor):
@@ -29,11 +29,15 @@ class Predictor(BasePredictor):
             cache_dir=MODEL_CACHE,
             local_files_only=True,
             torch_dtype=torch.float16,
+            revision=SAFETY_REVISION,
+            use_safetensors=True,
         )
         # ? wasn't previously necessary 
         feature_extractor=CLIPFeatureExtractor.from_pretrained("openai/clip-vit-base-patch32",
             cache_dir=MODEL_CACHE,
             torch_dtype=torch.float16,
+            local_files_only=True,
+            use_safetensors=True,
         )
         self.pipe = StableDiffusionPipeline.from_pretrained(
             MODEL_ID,
@@ -43,6 +47,7 @@ class Predictor(BasePredictor):
             cache_dir=MODEL_CACHE,
             local_files_only=True,
             torch_dtype=torch.float16,
+            use_safetensors=True,
         ).to("cuda")
 
     @torch.inference_mode()

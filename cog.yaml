@@ -1,5 +1,5 @@
 build:
-  gpu: false
+  gpu: true
   python_version: "3.11.1"
   python_packages:
     - "diffusers"

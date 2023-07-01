@@ -38,6 +38,7 @@ ENTRYPOINT ["/sbin/tini", "--"]
 COPY --from=model /src/diffusers-cache /src/diffusers-cache
 COPY --from=torch /dep/ /src/
 COPY --from=deps /dep/ /src/
+RUN cp /usr/bin/echo /usr/local/bin/pip # prevent k8s from installing anything
 WORKDIR /src
 EXPOSE 5000
 CMD ["python", "-m", "cog.server.http"]
