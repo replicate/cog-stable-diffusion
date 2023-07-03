@@ -24,6 +24,7 @@ class Predictor(BasePredictor):
     def setup(self):
         """Load the model into memory to make running multiple predictions efficient"""
         print("Loading pipeline...")
+        logtime("predict setup")
         safety_checker = StableDiffusionSafetyChecker.from_pretrained(
             SAFETY_MODEL_ID,
             cache_dir=MODEL_CACHE,
@@ -32,6 +33,7 @@ class Predictor(BasePredictor):
             revision=SAFETY_REVISION,
             use_safetensors=True,
         )
+        logtime("loaded safety checker")
         # ? wasn't previously necessary 
         feature_extractor=CLIPFeatureExtractor.from_pretrained("openai/clip-vit-base-patch32",
             cache_dir=MODEL_CACHE,
@@ -39,6 +41,7 @@ class Predictor(BasePredictor):
             local_files_only=True,
             use_safetensors=True,
         )
+        logtime("loaded feature extractor")
         self.pipe = StableDiffusionPipeline.from_pretrained(
             MODEL_ID,
             safety_checker=safety_checker,
@@ -48,7 +51,10 @@ class Predictor(BasePredictor):
             local_files_only=True,
             torch_dtype=torch.float16,
             use_safetensors=True,
-        ).to("cuda")
+        )
+        logtime("loaded pipe")
+        self.pipe = self.pipe.to("cuda")
+        logtime("moved pipe to cuda")
 
     @torch.inference_mode()
     def predict(
@@ -100,6 +106,7 @@ class Predictor(BasePredictor):
         ),
     ) -> List[Path]:
         """Run a single prediction on the model"""
+        logtime("predict predict start")
         if seed is None:
             seed = int.from_bytes(os.urandom(2), "big")
         print(f"Using seed: {seed}")
@@ -112,6 +119,7 @@ class Predictor(BasePredictor):
         self.pipe.scheduler = make_scheduler(scheduler, self.pipe.scheduler.config)
 
         generator = torch.Generator("cuda").manual_seed(seed)
+        logtime("actually doing prediction")
         output = self.pipe(
             prompt=[prompt] * num_outputs if prompt is not None else None,
             negative_prompt=[negative_prompt] * num_outputs
@@ -123,6 +131,7 @@ class Predictor(BasePredictor):
             generator=generator,
             num_inference_steps=num_inference_steps,
         )
+        logtime("got pipe output")
 
         output_paths = []
         for i, sample in enumerate(output.images):
@@ -132,6 +141,7 @@ class Predictor(BasePredictor):
             output_path = f"/tmp/out-{i}.png"
             sample.save(output_path)
             output_paths.append(Path(output_path))
+        logtime("saved files")
 
         if len(output_paths) == 0:
             raise Exception(
