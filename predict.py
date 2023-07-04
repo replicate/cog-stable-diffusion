@@ -6,8 +6,11 @@ def logtime(msg: str) -> None:
 import os
 from typing import List
 
+logtime("importing torch")
 import torch
+logtime("imported torch, importing cog")
 from cog import BasePredictor, Input, Path
+logtime("importing cog, importing diffusers")
 from diffusers import (
     StableDiffusionPipeline,
     PNDMScheduler,
@@ -20,6 +23,7 @@ from diffusers import (
 from diffusers.pipelines.stable_diffusion.safety_checker import (
     StableDiffusionSafetyChecker,
 )
+logtime("imported diffusers, importing transformers")
 from transformers import CLIPFeatureExtractor
 
 from version import MODEL_CACHE, MODEL_ID, REVISION, SAFETY_MODEL_ID, SAFETY_REVISION
