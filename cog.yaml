@@ -9,6 +9,6 @@ build:
     - "scipy==1.9.3"
     - "transformers==4.30.2"
     - "accelerate==0.20.3"
-    - "huggingface-hub==0.13.2"
+    - "huggingface-hub==0.15.1"
 
 predict: "predict.py:Predictor"
