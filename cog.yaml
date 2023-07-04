@@ -3,7 +3,7 @@ build:
   cuda: "11.8"
   python_version: "3.11.1"
   python_packages:
-    - "diffusers==0.11.1"
+    - "diffusers==0.17.1"
     - "torch==2.0.1"
     - "ftfy==6.1.1"
     - "scipy==1.9.3"
