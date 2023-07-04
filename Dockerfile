@@ -14,15 +14,16 @@ COPY ./torch-requirements.txt /requirements.txt
 # pip install torch; pip freeze | grep -v nvidia-cusolver | pip install --no-deps
 # RUN pip install -t /dep torch==2.0.1+cu118 --extra-index-url https://download.pytorch.org/whl/cu118
 RUN pip install -t /dep -r /requirements.txt --no-deps
-
-FROM python:3.11-slim as nvtx
-RUN pip install -t /dep nvtx
-
+#RUN pip install -t /dep --only-binary :all: nvtx
 FROM python:3.11 as nsight 
 RUN curl -L -o repo.deb https://developer.download.nvidia.com/compute/cuda/12.1.0/local_installers/cuda-repo-debian11-12-1-local_12.1.0-530.30.02-1_amd64.deb \
   && dpkg -i ./repo.deb \
   && mv /var/cuda-repo-debian11-12-1-local/nsight-systems-2023.1.2_2023.1.2.43-1_amd64.deb /nsight.deb
 
+FROM python:3.11-slim as nvtx
+WORKDIR /dep
+# on 3.10 nvtx wheel is available, but for 3.11 i built one myself  
+RUN pip install -t /dep https://r2-public-worker.drysys.workers.dev/nvtx-0.2.5-cp311-cp311-linux_x86_64.whl
 
 FROM python:3.11-slim as deps
 WORKDIR /dep
@@ -48,7 +49,8 @@ COPY --from=torch --link /dep/ /src/
 COPY --from=deps --link /dep/ /src/
 COPY --from=nvtx /dep/ /src/
 COPY --from=nsight /nsight.deb /tmp
-RUN dpkg -i /tmp/nsight.deb 
+RUN dpkg -i /tmp/nsight.deb || true && apt-get update && apt-get install -y --fix-broken \
+  && rm -rf /var/lib/apt/lists/*
 COPY ./cog-overwrite/http.py /src/cog/server/http.py
 ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/x86_64-linux-gnu:/usr/local/nvidia/lib64:/usr/local/nvidia/bin
 ENV PATH=$PATH:/usr/local/nvidia/bin
