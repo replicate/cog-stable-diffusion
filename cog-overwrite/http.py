@@ -1,6 +1,7 @@
 import time
+import sys
 def logtime(msg: str) -> None:
-    print(f"===TIME {time.time():.4f} {msg}===")
+    print(f"===TIME {time.time():.4f} {msg}===", file=sys.stderr)
 logtime("http started")
 
 

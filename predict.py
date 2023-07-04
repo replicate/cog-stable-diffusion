@@ -1,3 +1,8 @@
+import time
+import sys
+def logtime(msg: str) -> None:
+    print(f"===TIME {time.time():.4f} {msg}===", file=sys.stderr)
+
 import os
 from typing import List
 

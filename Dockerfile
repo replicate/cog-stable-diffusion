@@ -38,7 +38,7 @@ ENTRYPOINT ["/sbin/tini", "--"]
 COPY --from=model /src/diffusers-cache /src/diffusers-cache
 COPY --from=torch /dep/ /src/
 COPY --from=deps /dep/ /src/
-COPY http.py /src/cog/server/http.py
+COPY ./cog-overwrite/http.py /src/cog/server/http.py
 ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/x86_64-linux-gnu:/usr/local/nvidia/lib64:/usr/local/nvidia/bin
 ENV PATH=$PATH:/usr/local/nvidia/bin
 RUN cp /usr/bin/echo /usr/local/bin/pip # prevent k8s from installing anything
