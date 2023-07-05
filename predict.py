@@ -1,71 +1,107 @@
 import time
 import sys
-def logtime(msg: str) -> None:
-    print(f"===TIME {time.time():.4f} {msg}===", file=sys.stderr)
+import contextlib
+
+
+@contextlib.contextmanager
+def just_timer(msg: str) -> "Iterator[None]":
+    start = time.time()
+    yield
+    print(f"{msg} took {time.time() - start:.3f}s")
+
+
+try:
+    with just_timer("nvtx"):
+        from nvtx import annotate
+except ImportError:
+
+    class annotate:
+        def __init__(self, _: str) -> None:
+            pass
+
+        def __enter__(self, *args: "Any", **kwargs: "Any") -> "Any":
+            pass
+
+        def __exit__(self, *args: "Any", **kwargs: "Any") -> "Any":
+            pass
+
+        def __call__(self, func: "Any") -> "Any":
+            return func
+
+
+@contextlib.contextmanager
+def timer(msg: str) -> "Iterator[None]":
+    start = time.time()
+    with annotate(msg):
+        yield
+    print(f"{msg} took {time.time() - start:.3f}s")
+
 
 import os
 from typing import List
 
-logtime("importing torch")
-import torch
-logtime("imported torch, importing cog")
-from cog import BasePredictor, Input, Path
-logtime("importing cog, importing diffusers")
-from diffusers import (
-    StableDiffusionPipeline,
-    PNDMScheduler,
-    LMSDiscreteScheduler,
-    DDIMScheduler,
-    EulerDiscreteScheduler,
-    EulerAncestralDiscreteScheduler,
-    DPMSolverMultistepScheduler,
-)
+with timer("import torch"):
+    import torch
+with timer("import cog"):
+    from cog import BasePredictor, Input, Path
+with timer("import diffusers"):
+    from diffusers import (
+        StableDiffusionPipeline,
+        PNDMScheduler,
+        LMSDiscreteScheduler,
+        DDIMScheduler,
+        EulerDiscreteScheduler,
+        EulerAncestralDiscreteScheduler,
+        DPMSolverMultistepScheduler,
+    )
 from diffusers.pipelines.stable_diffusion.safety_checker import (
     StableDiffusionSafetyChecker,
 )
-logtime("imported diffusers, importing transformers")
-from transformers import CLIPFeatureExtractor
+
+with timer("import transformers"):
+    from transformers import CLIPFeatureExtractor
 
 from version import MODEL_CACHE, MODEL_ID, REVISION, SAFETY_MODEL_ID, SAFETY_REVISION
 
 
 class Predictor(BasePredictor):
+    @annotate("Predictor.setup")
     def setup(self):
         """Load the model into memory to make running multiple predictions efficient"""
         print("Loading pipeline...")
-        logtime("predict setup")
-        safety_checker = StableDiffusionSafetyChecker.from_pretrained(
-            SAFETY_MODEL_ID,
-            cache_dir=MODEL_CACHE,
-            local_files_only=True,
-            torch_dtype=torch.float16,
-            revision=SAFETY_REVISION,
-            use_safetensors=True,
-        )
-        logtime("loaded safety checker")
-        # ? wasn't previously necessary 
-        feature_extractor=CLIPFeatureExtractor.from_pretrained("openai/clip-vit-base-patch32",
-            cache_dir=MODEL_CACHE,
-            torch_dtype=torch.float16,
-            local_files_only=True,
-            use_safetensors=True,
-        )
-        logtime("loaded feature extractor")
-        self.pipe = StableDiffusionPipeline.from_pretrained(
-            MODEL_ID,
-            safety_checker=safety_checker,
-            feature_extractor=feature_extractor,
-            revision=REVISION,
-            cache_dir=MODEL_CACHE,
-            local_files_only=True,
-            torch_dtype=torch.float16,
-            use_safetensors=True,
-        )
-        logtime("loaded pipe")
-        self.pipe = self.pipe.to("cuda")
-        logtime("moved pipe to cuda")
+        with annotate("safety.from_pretrained"):
+            safety_checker = StableDiffusionSafetyChecker.from_pretrained(
+                SAFETY_MODEL_ID,
+                cache_dir=MODEL_CACHE,
+                local_files_only=True,
+                torch_dtype=torch.float16,
+                revision=SAFETY_REVISION,
+                use_safetensors=True,
+            )
+        with annotate("feature.from_pretrained"):
+            feature_extractor = CLIPFeatureExtractor.from_pretrained(
+                "openai/clip-vit-base-patch32",
+                cache_dir=MODEL_CACHE,
+                torch_dtype=torch.float16,
+                local_files_only=True,
+                use_safetensors=True,
+            )
+        with annotate("sd_pipe.from_pretrained"):
+            self.pipe = StableDiffusionPipeline.from_pretrained(
+                MODEL_ID,
+                safety_checker=safety_checker,
+                feature_extractor=feature_extractor,
+                revision=REVISION,
+                cache_dir=MODEL_CACHE,
+                local_files_only=True,
+                torch_dtype=torch.float16,
+                use_safetensors=True,
+            )
+        with annotate(".cuda"):
+            self.pipe = self.pipe.to("cuda")
 
     @torch.inference_mode()
+    @annotate("Predictor.predict")
     def predict(
         self,
         prompt: str = Input(
@@ -115,7 +151,6 @@ class Predictor(BasePredictor):
         ),
     ) -> List[Path]:
         """Run a single prediction on the model"""
-        logtime("predict predict start")
         if seed is None:
             seed = int.from_bytes(os.urandom(2), "big")
         print(f"Using seed: {seed}")
@@ -128,19 +163,18 @@ class Predictor(BasePredictor):
         self.pipe.scheduler = make_scheduler(scheduler, self.pipe.scheduler.config)
 
         generator = torch.Generator("cuda").manual_seed(seed)
-        logtime("actually doing prediction")
-        output = self.pipe(
-            prompt=[prompt] * num_outputs if prompt is not None else None,
-            negative_prompt=[negative_prompt] * num_outputs
-            if negative_prompt is not None
-            else None,
-            width=width,
-            height=height,
-            guidance_scale=guidance_scale,
-            generator=generator,
-            num_inference_steps=num_inference_steps,
-        )
-        logtime("got pipe output")
+        with annotate("call pipe"):
+            output = self.pipe(
+                prompt=[prompt] * num_outputs if prompt is not None else None,
+                negative_prompt=[negative_prompt] * num_outputs
+                if negative_prompt is not None
+                else None,
+                width=width,
+                height=height,
+                guidance_scale=guidance_scale,
+                generator=generator,
+                num_inference_steps=num_inference_steps,
+            )
 
         output_paths = []
         for i, sample in enumerate(output.images):
@@ -150,7 +184,6 @@ class Predictor(BasePredictor):
             output_path = f"/tmp/out-{i}.png"
             sample.save(output_path)
             output_paths.append(Path(output_path))
-        logtime("saved files")
 
         if len(output_paths) == 0:
             raise Exception(

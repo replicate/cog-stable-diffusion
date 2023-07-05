@@ -52,6 +52,7 @@ COPY --from=nsight /nsight.deb /tmp
 RUN dpkg -i /tmp/nsight.deb || true && apt-get update && apt-get install -y --fix-broken \
   && rm -rf /var/lib/apt/lists/*
 COPY ./cog-overwrite/http.py /src/cog/server/http.py
+COPY ./cog-overwrite/predictor.py /src/cog/predictor.py
 ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/x86_64-linux-gnu:/usr/local/nvidia/lib64:/usr/local/nvidia/bin
 ENV PATH=$PATH:/usr/local/nvidia/bin
 RUN cp /usr/bin/echo /usr/local/bin/pip # prevent k8s from installing anything
