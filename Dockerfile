@@ -8,7 +8,7 @@ RUN set -eux; \
   curl -sSL -o /sbin/tini "https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-${TINI_ARCH}"; \
   chmod +x /sbin/tini
 
-FROM python:3.11-slim as torch
+FROM python:3.10-slim as torch
 WORKDIR /dep
 COPY ./torch-requirements.txt /requirements.txt
 # pip install torch; pip freeze | grep -v nvidia-cusolver | pip install --no-deps
@@ -16,14 +16,14 @@ COPY ./torch-requirements.txt /requirements.txt
 RUN pip install -t /dep -r /requirements.txt --no-deps
 
 
-FROM python:3.11-slim as deps
+FROM python:3.10-slim as deps
 WORKDIR /dep
 COPY ./other-requirements.txt /requirements.txt
 RUN pip install -t /dep -r /requirements.txt --no-deps
 COPY .cog/tmp/*/cog-0.0.1.dev-py3-none-any.whl /tmp/cog-0.0.1.dev-py3-none-any.whl
 RUN pip install -t /dep /tmp/cog-0.0.1.dev-py3-none-any.whl --no-deps
 
-FROM python:3.11-slim as model
+FROM python:3.10-slim as model
 WORKDIR /src
 COPY --from=torch /dep/ /src/
 RUN pip install -t /src diffusers transformers safetensors
@@ -32,7 +32,7 @@ RUN pip install -t /src diffusers transformers safetensors
 COPY ./version.py ./script/download-weights /src/
 RUN python3 download-weights 
 
-FROM python:3.11-slim
+FROM python:3.10-slim
 COPY --from=tini /sbin/tini /sbin/tini
 ENTRYPOINT ["/sbin/tini", "--"]
 COPY --from=model /src/diffusers-cache /src/diffusers-cache
