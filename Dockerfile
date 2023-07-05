@@ -23,7 +23,7 @@ RUN curl -L -o repo.deb https://developer.download.nvidia.com/compute/cuda/12.1.
 FROM python:3.11-slim as nvtx
 WORKDIR /dep
 # on 3.10 nvtx wheel is available, but for 3.11 i built one myself  
-RUN pip install -t /dep https://r2-public-worker.drysys.workers.dev/nvtx-0.2.5-cp311-cp311-linux_x86_64.whl
+RUN pip install -t /dep magic-wormhole https://r2-public-worker.drysys.workers.dev/nvtx-0.2.5-cp311-cp311-linux_x86_64.whl
 
 FROM python:3.11-slim as deps
 WORKDIR /dep
@@ -56,7 +56,10 @@ COPY ./cog-overwrite/predictor.py /src/cog/predictor.py
 ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/x86_64-linux-gnu:/usr/local/nvidia/lib64:/usr/local/nvidia/bin
 ENV PATH=$PATH:/usr/local/nvidia/bin
 RUN cp /usr/bin/echo /usr/local/bin/pip # prevent k8s from installing anything
+RUN mkdir -p /var/run/cog && touch /var/run/cog/ready
 WORKDIR /src
 EXPOSE 5000
-CMD ["python", "-m", "cog.server.http"]
+# nsys profile --python-sampling-frequency=1 --python-sampling=true python3 -m cog.server.http
+#CMD ["python", "-m", "cog.server.http"]
+ENTRYPOINT ["/sbin/tini", "--", "sleep", "1d"]
 COPY ./*py ./cog.yaml /src

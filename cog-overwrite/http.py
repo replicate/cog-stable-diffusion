@@ -1,5 +1,9 @@
 import time
 import sys
+#import os
+
+#docker = os.path.isfile("/.dockerenv")
+
 def logtime(msg: str) -> None:
     print(f"===TIME {time.time():.4f} {msg}===", file=sys.stderr)
 logtime("http started")

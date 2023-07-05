@@ -7,7 +7,7 @@ import contextlib
 def just_timer(msg: str) -> "Iterator[None]":
     start = time.time()
     yield
-    print(f"{msg} took {time.time() - start:.3f}s")
+    print(f"{msg} took {time.time() - start:.3f}s", file=sys.stderr)
 
 
 try:
@@ -34,7 +34,7 @@ def timer(msg: str) -> "Iterator[None]":
     start = time.time()
     with annotate(msg):
         yield
-    print(f"{msg} took {time.time() - start:.3f}s")
+    print(f"{msg} took {time.time() - start:.3f}s", file=sys.stderr)
 
 
 import os
