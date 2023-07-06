@@ -1,6 +1,3 @@
-
-# torch==2.0.1+cu118 --extra-index-url https://download.pytorch.org/whl/cu118
-
 FROM appropriate/curl as tini
 RUN set -eux; \
   TINI_VERSION=v0.19.0; \
@@ -8,13 +5,15 @@ RUN set -eux; \
   curl -sSL -o /sbin/tini "https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-${TINI_ARCH}"; \
   chmod +x /sbin/tini
 
+FROM appropriate/curl as pget 
+RUN curl -sSL -o /pget https://github.com/replicate/pget/releases/download/v0.0.1/pget \
+  && chmod +x /pget
 FROM python:3.11-slim as torch
 WORKDIR /dep
 COPY ./torch-requirements.txt /requirements.txt
 # pip install torch; pip freeze | grep -v nvidia-cusolver | pip install --no-deps
 # RUN pip install -t /dep torch==2.0.1+cu118 --extra-index-url https://download.pytorch.org/whl/cu118
 RUN pip install -t /dep -r /requirements.txt --no-deps
-
 
 FROM python:3.11-slim as deps
 WORKDIR /dep
@@ -31,14 +30,17 @@ RUN pip install -t /src diffusers transformers safetensors
 # RUN pip install -t /src -r /requirements.txt --no-deps # ?
 COPY ./version.py ./script/download-weights /src/
 RUN python3 download-weights 
+# upload to GCS / elsewhere
 
 FROM python:3.11-slim
-COPY --from=tini /sbin/tini /sbin/tini
+COPY --from=tini --link /sbin/tini /sbin/tini
 ENTRYPOINT ["/sbin/tini", "--"]
-COPY --from=model /src/diffusers-cache /src/diffusers-cache
-COPY --from=torch /dep/ /src/
-COPY --from=deps /dep/ /src/
+#COPY --from=model --link /src/diffusers-cache /src/diffusers-cache
+COPY --from=torch --link /dep/ /src/
+COPY --from=deps --link /dep/ /src/
+COPY --from/pget --link /pget /bin/pget
 COPY ./cog-overwrite/http.py /src/cog/server/http.py
+COPY ./cog-overwrite/predictor.py /src/cog/predictor.py
 ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/x86_64-linux-gnu:/usr/local/nvidia/lib64:/usr/local/nvidia/bin
 ENV PATH=$PATH:/usr/local/nvidia/bin
 RUN cp /usr/bin/echo /usr/local/bin/pip # prevent k8s from installing anything

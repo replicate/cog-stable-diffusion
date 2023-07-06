@@ -41,3 +41,6 @@ pipe = StableDiffusionPipeline.from_pretrained(
     torch_dtype=torch.float16,
     use_safetensors=True
 )
+
+subprocess.run(["tar", "--create", "--file", "sd-2.1-fp16-safetensors.tar", MODEL_CACHE])
+# ...do something to upload here...

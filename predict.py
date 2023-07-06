@@ -1,15 +1,31 @@
+import os
 import time
 import sys
+import pathlib
+from version import MODEL_CACHE, MODEL_ID, REVISION, SAFETY_MODEL_ID, SAFETY_REVISION
+
+check = pathlib.Path("/tmp/predict-import")
+if not check.exists():
+    check.touch()
+else:
+    print("===!!!!!!predict has been imported again!!!!!!===")
+pget_proc = subprocess.Popen(
+    ["/bin/pget", "-x", os.environ["WEIGHT_URL"], MODEL_CACHE], close_fds=True
+)
+
+
 def logtime(msg: str) -> None:
     print(f"===TIME {time.time():.4f} {msg}===", file=sys.stderr)
 
-import os
+
 from typing import List
 
 logtime("importing torch")
 import torch
+
 logtime("imported torch, importing cog")
 from cog import BasePredictor, Input, Path
+
 logtime("importing cog, importing diffusers")
 from diffusers import (
     StableDiffusionPipeline,
@@ -23,10 +39,9 @@ from diffusers import (
 from diffusers.pipelines.stable_diffusion.safety_checker import (
     StableDiffusionSafetyChecker,
 )
+
 logtime("imported diffusers, importing transformers")
 from transformers import CLIPFeatureExtractor
-
-from version import MODEL_CACHE, MODEL_ID, REVISION, SAFETY_MODEL_ID, SAFETY_REVISION
 
 
 class Predictor(BasePredictor):
@@ -34,6 +49,8 @@ class Predictor(BasePredictor):
         """Load the model into memory to make running multiple predictions efficient"""
         print("Loading pipeline...")
         logtime("predict setup")
+        pget_proc.wait()
+        logtime("finished pget")
         safety_checker = StableDiffusionSafetyChecker.from_pretrained(
             SAFETY_MODEL_ID,
             cache_dir=MODEL_CACHE,
@@ -43,8 +60,9 @@ class Predictor(BasePredictor):
             use_safetensors=True,
         )
         logtime("loaded safety checker")
-        # ? wasn't previously necessary 
-        feature_extractor=CLIPFeatureExtractor.from_pretrained("openai/clip-vit-base-patch32",
+        # ? wasn't previously necessary
+        feature_extractor = CLIPFeatureExtractor.from_pretrained(
+            "openai/clip-vit-base-patch32",
             cache_dir=MODEL_CACHE,
             torch_dtype=torch.float16,
             local_files_only=True,
