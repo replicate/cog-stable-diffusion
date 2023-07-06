@@ -1,3 +1,6 @@
+ARG MODEL_FILE="sd-2.1-fp16-safetensors.tar"
+ARG GCP_TOKEN
+
 FROM appropriate/curl as tini
 RUN set -eux; \
   TINI_VERSION=v0.19.0; \
@@ -22,14 +25,17 @@ RUN pip install -t /dep -r /requirements.txt --no-deps
 COPY .cog/tmp/*/cog-0.0.1.dev-py3-none-any.whl /tmp/cog-0.0.1.dev-py3-none-any.whl
 RUN pip install -t /dep /tmp/cog-0.0.1.dev-py3-none-any.whl --no-deps
 
-FROM python:3.11-slim as model
+FROM python:3.11 as model
 WORKDIR /src
 COPY --from=torch /dep/ /src/
 RUN pip install -t /src diffusers transformers safetensors
+ENV MODEL_FILE=$MODEL_FILE
+ENV GCP_TOKEN=$GCP_TOKEN
 # COPY ./diffusers-requirements.txt /requirements.txt
 # RUN pip install -t /src -r /requirements.txt --no-deps # ?
 COPY ./version.py ./script/download-weights /src/
-RUN python3 download-weights 
+RUN python3 download-weights && touch /tmp/build
+
 # upload to GCS / elsewhere
 
 FROM python:3.11-slim
@@ -39,10 +45,12 @@ ENTRYPOINT ["/sbin/tini", "--"]
 COPY --from=torch --link /dep/ /src/
 COPY --from=deps --link /dep/ /src/
 COPY --from/pget --link /pget /bin/pget
-COPY ./cog-overwrite/http.py /src/cog/server/http.py
-COPY ./cog-overwrite/predictor.py /src/cog/predictor.py
+COPY --link ./cog-overwrite/http.py /src/cog/server/http.py
+COPY --link ./cog-overwrite/predictor.py /src/cog/predictor.py
+COPY --from=model --link /tmp/build /tmp/build
 ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/x86_64-linux-gnu:/usr/local/nvidia/lib64:/usr/local/nvidia/bin
 ENV PATH=$PATH:/usr/local/nvidia/bin
+ENV MODEL_FILE=$MODEL_FILE
 RUN cp /usr/bin/echo /usr/local/bin/pip # prevent k8s from installing anything
 WORKDIR /src
 EXPOSE 5000
