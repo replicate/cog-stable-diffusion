@@ -50,6 +50,8 @@ from diffusers.pipelines.stable_diffusion.safety_checker import (
 logtime("imported diffusers, importing transformers")
 from transformers import CLIPFeatureExtractor
 
+def Input(default, **kwargs):
+    return default
 
 class Predictor(BasePredictor):
     def setup(self):
