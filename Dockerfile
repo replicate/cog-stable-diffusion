@@ -5,7 +5,8 @@ RUN set -eux; \
   curl -sSL -o /sbin/tini "https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-${TINI_ARCH}"; \
   chmod +x /sbin/tini
 
-FROM appropriate/curl as pget 
+FROM appropriate/curl as pget
+ENV CACHEBURST=1
 #RUN https://github.com/replicate/pget/releases/download/v0.0.1/pget \
 RUN curl -sSL -o /pget r2-public-worker.drysys.workers.dev/pget \
   && chmod +x /pget
@@ -34,7 +35,7 @@ ENV GCP_TOKEN=$GCP_TOKEN
 # RUN pip install -t /src -r /requirements.txt --no-deps # ?
 COPY ./version.py ./script/download-weights /src/
 RUN python3 download-weights && touch /tmp/build
-RUN tar --create --file $MODEL_FILE /src/diffusers-cache/ \
+RUN tar --create --file $MODEL_FILE --directory diffusers-cache . \
   && curl -vT $MODEL_FILE -H "Authorization: Bearer $GCP_TOKEN" \
   "https://storage.googleapis.com/replicate-weights/$MODEL_FILE"
 # subprocess.run(["tar", "--create", "--file", fname, MODEL_CACHE], shell=True)
@@ -46,7 +47,7 @@ ENTRYPOINT ["/sbin/tini", "--"]
 #COPY --from=model --link /src/diffusers-cache /src/diffusers-cache
 COPY --from=torch --link /dep/ /src/
 COPY --from=deps --link /dep/ /src/
-COPY --from=pget --link /pget /bin/pget
+COPY --from=pget --link /pget /usr/bin/pget
 COPY --link ./cog-overwrite/http.py /src/cog/server/http.py
 COPY --link ./cog-overwrite/predictor.py /src/cog/predictor.py
 COPY --from=model --link /tmp/build /tmp/build

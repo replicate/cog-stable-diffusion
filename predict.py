@@ -15,10 +15,10 @@ if not check.exists():
     check.touch()
 else:
     print("===!!!!!!predict has been imported again!!!!!!===")
-if not pathlib.Path("/.dockerenv").exists():
+if os.getenv("PGET") or not pathlib.Path("/.dockerenv").exists():
     url = f"https://storage.googleapis.com/replicate-weights/{os.environ['MODEL_FILE']}"
     pget_proc = subprocess.Popen(
-        ["/bin/pget", "-x", os.environ["MODEL_FILE"], MODEL_CACHE], close_fds=True
+        ["/usr/bin/pget", "-x", url, MODEL_CACHE], close_fds=True
     )
     logtime("pget launched")
 else:
