@@ -2,7 +2,7 @@ import time
 import sys
 def logtime(msg: str) -> None:
     print(f"===TIME {time.time():.4f} {msg}===", file=sys.stderr)
-logtime("http started")
+logtime("top of http")
 
 
 import argparse
@@ -92,12 +92,12 @@ def create_app(
 
     @app.on_event("startup")
     def startup() -> None:
-        logtime("http startup")
+        logtime("http app startup")
         # https://github.com/tiangolo/fastapi/issues/4221
         RunVar("_default_thread_limiter").set(CapacityLimiter(threads))  # type: ignore
 
         app.state.setup_result = runner.setup()
-        logtime("http startup done")
+        logtime("http app startup done")
 
     @app.on_event("shutdown")
     def shutdown() -> None:
@@ -325,6 +325,7 @@ def signal_set_event(event: threading.Event) -> Callable:
 
 
 if __name__ == "__main__":
+    logtime("http __main__")
     parser = argparse.ArgumentParser(description="Cog HTTP server")
     parser.add_argument(
         "--threads",

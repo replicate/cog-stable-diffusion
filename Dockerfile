@@ -1,6 +1,3 @@
-ARG MODEL_FILE="sd-2.1-fp16-safetensors.tar"
-ARG GCP_TOKEN
-
 FROM appropriate/curl as tini
 RUN set -eux; \
   TINI_VERSION=v0.19.0; \
@@ -9,7 +6,8 @@ RUN set -eux; \
   chmod +x /sbin/tini
 
 FROM appropriate/curl as pget 
-RUN curl -sSL -o /pget https://github.com/replicate/pget/releases/download/v0.0.1/pget \
+#RUN https://github.com/replicate/pget/releases/download/v0.0.1/pget \
+RUN curl -sSL -o /pget r2-public-worker.drysys.workers.dev/pget \
   && chmod +x /pget
 FROM python:3.11-slim as torch
 WORKDIR /dep
@@ -29,12 +27,19 @@ FROM python:3.11 as model
 WORKDIR /src
 COPY --from=torch /dep/ /src/
 RUN pip install -t /src diffusers transformers safetensors
+ARG MODEL_FILE="sd-2.1-fp16-safetensors.tar"
+ARG GCP_TOKEN # patched 
 ENV MODEL_FILE=$MODEL_FILE
 ENV GCP_TOKEN=$GCP_TOKEN
 # COPY ./diffusers-requirements.txt /requirements.txt
 # RUN pip install -t /src -r /requirements.txt --no-deps # ?
 COPY ./version.py ./script/download-weights /src/
 RUN python3 download-weights && touch /tmp/build
+RUN tar --create --file $MODEL_FILE /src/diffusers-cache/ \
+  && curl -vT $MODEL_FILE -H "Authorization: Bearer $GCP_TOKEN" \
+  "https://storage.googleapis.com/replicate-weights/$MODEL_FILE"
+# subprocess.run(["tar", "--create", "--file", fname, MODEL_CACHE], shell=True)
+# subprocess.run(["curl", "-v", "-T", fname, "-H", f"Authorization: Bearer {TOKEN}", f"https://storage.googleapis.com/replicate-weights/{fname}"])
 
 # upload to GCS / elsewhere
 
@@ -44,12 +49,14 @@ ENTRYPOINT ["/sbin/tini", "--"]
 #COPY --from=model --link /src/diffusers-cache /src/diffusers-cache
 COPY --from=torch --link /dep/ /src/
 COPY --from=deps --link /dep/ /src/
-COPY --from/pget --link /pget /bin/pget
+COPY --from=pget --link /pget /bin/pget
 COPY --link ./cog-overwrite/http.py /src/cog/server/http.py
 COPY --link ./cog-overwrite/predictor.py /src/cog/predictor.py
 COPY --from=model --link /tmp/build /tmp/build
 ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/x86_64-linux-gnu:/usr/local/nvidia/lib64:/usr/local/nvidia/bin
 ENV PATH=$PATH:/usr/local/nvidia/bin
+ARG MODEL_FILE="sd-2.1-fp16-safetensors.tar"
+ARG GCP_TOKEN # patched 
 ENV MODEL_FILE=$MODEL_FILE
 RUN cp /usr/bin/echo /usr/local/bin/pip # prevent k8s from installing anything
 WORKDIR /src

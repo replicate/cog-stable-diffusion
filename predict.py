@@ -2,20 +2,27 @@ import os
 import time
 import sys
 import pathlib
+import subprocess
 from version import MODEL_CACHE, MODEL_ID, REVISION, SAFETY_MODEL_ID, SAFETY_REVISION
+
+
+def logtime(msg: str) -> None:
+    print(f"===TIME {time.time():.4f} {msg}===", file=sys.stderr)
 
 check = pathlib.Path("/tmp/predict-import")
 if not check.exists():
     check.touch()
 else:
     print("===!!!!!!predict has been imported again!!!!!!===")
-pget_proc = subprocess.Popen(
-    ["/bin/pget", "-x", os.environ["WEIGHT_URL"], MODEL_CACHE], close_fds=True
-)
+if not pathlib.Path("/.dockerenv").exists():
+    url = f"https://storage.googleapis.com/replicate-weights/{os.environ['MODEL_FILE']}"
+    pget_proc = subprocess.Popen(
+    ["/bin/pget", "-x", os.environ["MODEL_FILE"], MODEL_CACHE], close_fds=True
+    )
+    logtime("pget launched")
+else:
+    pget_proc = None
 
-
-def logtime(msg: str) -> None:
-    print(f"===TIME {time.time():.4f} {msg}===", file=sys.stderr)
 
 
 from typing import List
@@ -49,7 +56,10 @@ class Predictor(BasePredictor):
         """Load the model into memory to make running multiple predictions efficient"""
         print("Loading pipeline...")
         logtime("predict setup")
-        pget_proc.wait()
+        if pget_proc:
+            pget_proc.wait()
+        else:
+            print("error!! no pget proc")
         logtime("finished pget")
         safety_checker = StableDiffusionSafetyChecker.from_pretrained(
             SAFETY_MODEL_ID,
