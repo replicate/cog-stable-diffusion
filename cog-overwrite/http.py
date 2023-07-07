@@ -85,11 +85,11 @@ def create_app(
         upload_url=upload_url,
     )
     # TODO: avoid loading predictor code in this process
-    predictor = load_predictor_from_ref(predictor_ref)
-    logtime("loaded predictor")
+    # predictor = load_predictor_from_ref(predictor_ref)
+    # logtime("loaded predictor")
 
-    InputType = get_input_type(predictor)
-    OutputType = get_output_type(predictor)
+    InputType = dict #get_input_type(predictor)
+    OutputType = list # get_output_type(predictor)
 
     PredictionRequest = schema.PredictionRequest.with_types(input_type=InputType)
     PredictionResponse = schema.PredictionResponse.with_types(
