@@ -12,8 +12,6 @@ RUN curl -sSL -o /pget r2-public-worker.drysys.workers.dev/pget \
 FROM python:3.11-slim as torch
 WORKDIR /dep
 COPY ./torch-requirements.txt /requirements.txt
-# pip install torch; pip freeze | grep -v nvidia-cusolver | pip install --no-deps
-# RUN pip install -t /dep torch==2.0.1+cu118 --extra-index-url https://download.pytorch.org/whl/cu118
 RUN pip install -t /dep -r /requirements.txt --no-deps
 
 FROM python:3.11-slim as deps
@@ -30,6 +28,7 @@ RUN pip install -t /src diffusers transformers safetensors
 ARG MODEL_FILE="sd-2.1-fp16-safetensors.tar"
 ARG GCP_TOKEN # patched 
 ENV MODEL_FILE=$MODEL_FILE
+# you need (gcloud auth print-access-token)
 ENV GCP_TOKEN=$GCP_TOKEN
 # COPY ./diffusers-requirements.txt /requirements.txt
 # RUN pip install -t /src -r /requirements.txt --no-deps # ?
@@ -40,8 +39,6 @@ RUN tar --create --file $MODEL_FILE /src/diffusers-cache/ \
   "https://storage.googleapis.com/replicate-weights/$MODEL_FILE"
 # subprocess.run(["tar", "--create", "--file", fname, MODEL_CACHE], shell=True)
 # subprocess.run(["curl", "-v", "-T", fname, "-H", f"Authorization: Bearer {TOKEN}", f"https://storage.googleapis.com/replicate-weights/{fname}"])
-
-# upload to GCS / elsewhere
 
 FROM python:3.11-slim
 COPY --from=tini --link /sbin/tini /sbin/tini

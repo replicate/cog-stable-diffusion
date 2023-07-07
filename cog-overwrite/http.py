@@ -1,7 +1,11 @@
 import time
 import sys
+
+
 def logtime(msg: str) -> None:
     print(f"===TIME {time.time():.4f} {msg}===", file=sys.stderr)
+
+
 logtime("top of http")
 
 
@@ -26,6 +30,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from pydantic.error_wrappers import ErrorWrapper
+
 logtime("http lib imports done")
 from .. import schema
 from ..files import upload_file
@@ -43,6 +48,7 @@ from .runner import PredictionRunner, RunnerBusyError, UnknownPredictionError
 log = structlog.get_logger("cog.server.http")
 
 logtime("http local imports done")
+
 
 @unique
 class Health(Enum):
@@ -145,7 +151,7 @@ def create_app(
 
         res = _predict(request=request, respond_async=respond_async)
         logtime("http prediction done")
-        return res 
+        return res
 
     @app.put(
         "/predictions/{prediction_id}",

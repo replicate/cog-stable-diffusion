@@ -9,6 +9,7 @@ from version import MODEL_CACHE, MODEL_ID, REVISION, SAFETY_MODEL_ID, SAFETY_REV
 def logtime(msg: str) -> None:
     print(f"===TIME {time.time():.4f} {msg}===", file=sys.stderr)
 
+
 check = pathlib.Path("/tmp/predict-import")
 if not check.exists():
     check.touch()
@@ -17,12 +18,11 @@ else:
 if not pathlib.Path("/.dockerenv").exists():
     url = f"https://storage.googleapis.com/replicate-weights/{os.environ['MODEL_FILE']}"
     pget_proc = subprocess.Popen(
-    ["/bin/pget", "-x", os.environ["MODEL_FILE"], MODEL_CACHE], close_fds=True
+        ["/bin/pget", "-x", os.environ["MODEL_FILE"], MODEL_CACHE], close_fds=True
     )
     logtime("pget launched")
 else:
     pget_proc = None
-
 
 
 from typing import List
