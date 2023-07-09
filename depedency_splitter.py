@@ -1,10 +1,13 @@
 import re
 import toml
+import requests
 
 # poetry export --without-hashes > poetry-requirements.txt
-requirements = open("poetry-requirements.txt").read().strip().split("\n")
+#requirements = open("poetry-requirements.txt").read().strip().split("\n")
 # poetry lock
-lock_data = toml.load("poetry.lock")
+resp = requests.post("https://poetry-service.fly.dev", data=open("cog.yaml").read())
+#lock_data = toml.load("poetry.lock")
+lock_data = toml.load(resp.data())
 
 packages = {p["name"].lower(): p for p in lock_data["package"]}
 
@@ -18,26 +21,33 @@ def add_subdeps(name: str, dep_set: set[str]) -> None:
     dep_set.add(name)
 
 
+def format_dep(dep: dict) -> str:
+    if "source" in dep:
+        return f"{dep['name']} @ {dep['source']['url']}"
+    return f"{dep['name']}=={dep['version']}"
+
 torch_deps = set()
 add_subdeps("torch", torch_deps)
 
-diffusers_deps = set()
-add_subdeps("diffusers", diffusers_deps)
-add_subdeps("safetensors", diffusers_deps)
-# might need to do something with Pillow and extras_require
-diffusers_deps -= torch_deps
+# diffusers_deps = set()
+# add_subdeps("diffusers", diffusers_deps)
+# add_subdeps("safetensors", diffusers_deps)
+# # might need to do something with Pillow and extras_require
+# diffusers_deps -= torch_deps
 
-# https://peps.python.org/pep-0508/#names
-# '^([A-Z0-9]|[A-Z0-9][A-Z0-9._-]*[A-Z0-9])'
-# must consist entirely of ASCII letters, numbers, ., -, and/or _
-pattern = re.compile("^[-\\w\\.]+")
-require_lines = [(pattern.search(line).group(), line) for line in requirements if line]
+# # https://peps.python.org/pep-0508/#names
+# # '^([A-Z0-9]|[A-Z0-9][A-Z0-9._-]*[A-Z0-9])'
+# # must consist entirely of ASCII letters, numbers, ., -, and/or _
+# pattern = re.compile("^[-\\w\\.]+")
+# require_lines = [(pattern.search(line).group(), line) for line in requirements if line]
 
-torch = "\n".join(line for name, line in require_lines if name in torch_deps)
-other = "\n".join(
-    line for name, line in require_lines if name not in torch_deps and name != "cog"
-)
-diffusers = "\n".join(line for name, line in require_lines if name in diffusers_deps)
+# torch = "\n".join(line for name, line in require_lines if name in torch_deps)
+torch = "\n".join(sorted(format_dep(packages[name.lower()]) for name in torch_deps))
+other = "\n".join(sorted(format_dep(packages[name.lower()]) for name in set(packages) - torch_deps))
+# other = "\n".join(
+#     line for name, line in require_lines if name not in torch_deps and name != "cog"
+# )
+#diffusers = "\n".join(line for name, line in require_lines if name in diffusers_deps)
 open("torch-requirements.txt", "w").write(torch)
 open("other-requirements.txt", "w").write(other)
-open("diffusers-requirements.txt", "w").write(diffusers)
+#open("diffusers-requirements.txt", "w").write(diffusers)

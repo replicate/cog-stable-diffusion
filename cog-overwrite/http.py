@@ -1,8 +1,12 @@
 import time
 import sys
+
+
 def logtime(msg: str) -> None:
     print(f"===TIME {time.time():.4f} {msg}===", file=sys.stderr)
-logtime("http started")
+
+
+logtime("top of http")
 
 
 import argparse
@@ -26,6 +30,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from pydantic.error_wrappers import ErrorWrapper
+
 logtime("http lib imports done")
 from .. import schema
 from ..files import upload_file
@@ -43,6 +48,7 @@ from .runner import PredictionRunner, RunnerBusyError, UnknownPredictionError
 log = structlog.get_logger("cog.server.http")
 
 logtime("http local imports done")
+
 
 @unique
 class Health(Enum):
@@ -79,11 +85,11 @@ def create_app(
         upload_url=upload_url,
     )
     # TODO: avoid loading predictor code in this process
-    predictor = load_predictor_from_ref(predictor_ref)
-    logtime("loaded predictor")
+    # predictor = load_predictor_from_ref(predictor_ref)
+    # logtime("loaded predictor")
 
-    InputType = get_input_type(predictor)
-    OutputType = get_output_type(predictor)
+    InputType = dict #get_input_type(predictor)
+    OutputType = list # get_output_type(predictor)
 
     PredictionRequest = schema.PredictionRequest.with_types(input_type=InputType)
     PredictionResponse = schema.PredictionResponse.with_types(
@@ -92,12 +98,12 @@ def create_app(
 
     @app.on_event("startup")
     def startup() -> None:
-        logtime("http startup")
+        logtime("http app startup")
         # https://github.com/tiangolo/fastapi/issues/4221
         RunVar("_default_thread_limiter").set(CapacityLimiter(threads))  # type: ignore
 
         app.state.setup_result = runner.setup()
-        logtime("http startup done")
+        logtime("http app startup done")
 
     @app.on_event("shutdown")
     def shutdown() -> None:
@@ -145,7 +151,7 @@ def create_app(
 
         res = _predict(request=request, respond_async=respond_async)
         logtime("http prediction done")
-        return res 
+        return res
 
     @app.put(
         "/predictions/{prediction_id}",
@@ -325,6 +331,7 @@ def signal_set_event(event: threading.Event) -> Callable:
 
 
 if __name__ == "__main__":
+    logtime("http __main__")
     parser = argparse.ArgumentParser(description="Cog HTTP server")
     parser.add_argument(
         "--threads",

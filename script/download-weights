@@ -3,6 +3,7 @@ import torch
 import os
 import shutil
 import sys
+import subprocess
 from transformers import CLIPFeatureExtractor
 from diffusers import StableDiffusionPipeline
 from diffusers.pipelines.stable_diffusion.safety_checker import (
@@ -41,3 +42,8 @@ pipe = StableDiffusionPipeline.from_pretrained(
     torch_dtype=torch.float16,
     use_safetensors=True
 )
+# fname = os.environ["MODEL_FILE"] # "sd-2.1-fp16-safetensors.tar"
+# TOKEN = os.environ["GCP_TOKEN"] 
+# subprocess.run(["tar", "--create", "--file", fname, MODEL_CACHE], shell=True)
+# subprocess.run(["curl", "-v", "-T", fname, "-H", f"Authorization: Bearer {TOKEN}", f"https://storage.googleapis.com/replicate-weights/{fname}"])
+# ...do something to upload here...

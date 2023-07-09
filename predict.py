@@ -1,15 +1,38 @@
+import os
 import time
 import sys
+import pathlib
+import subprocess
+from version import MODEL_CACHE, MODEL_ID, REVISION, SAFETY_MODEL_ID, SAFETY_REVISION
+
+
 def logtime(msg: str) -> None:
     print(f"===TIME {time.time():.4f} {msg}===", file=sys.stderr)
 
-import os
+
+check = pathlib.Path("/tmp/predict-import")
+if not check.exists():
+    check.touch()
+else:
+    print("===!!!!!!predict has been imported again!!!!!!===")
+if os.getenv("PGET") or not pathlib.Path("/.dockerenv").exists():
+    url = f"https://storage.googleapis.com/replicate-weights/{os.environ['MODEL_FILE']}"
+    pget_proc = subprocess.Popen(
+        ["/usr/bin/pget", "-x", url, MODEL_CACHE], close_fds=True
+    )
+    logtime("pget launched")
+else:
+    pget_proc = None
+
+
 from typing import List
 
 logtime("importing torch")
 import torch
+
 logtime("imported torch, importing cog")
 from cog import BasePredictor, Input, Path
+
 logtime("importing cog, importing diffusers")
 from diffusers import (
     StableDiffusionPipeline,
@@ -23,17 +46,23 @@ from diffusers import (
 from diffusers.pipelines.stable_diffusion.safety_checker import (
     StableDiffusionSafetyChecker,
 )
+
 logtime("imported diffusers, importing transformers")
 from transformers import CLIPFeatureExtractor
 
-from version import MODEL_CACHE, MODEL_ID, REVISION, SAFETY_MODEL_ID, SAFETY_REVISION
-
+def Input(default, **kwargs):
+    return default
 
 class Predictor(BasePredictor):
     def setup(self):
         """Load the model into memory to make running multiple predictions efficient"""
         print("Loading pipeline...")
         logtime("predict setup")
+        if pget_proc:
+            pget_proc.wait()
+        else:
+            print("error!! no pget proc")
+        logtime("finished pget")
         safety_checker = StableDiffusionSafetyChecker.from_pretrained(
             SAFETY_MODEL_ID,
             cache_dir=MODEL_CACHE,
@@ -43,8 +72,9 @@ class Predictor(BasePredictor):
             use_safetensors=True,
         )
         logtime("loaded safety checker")
-        # ? wasn't previously necessary 
-        feature_extractor=CLIPFeatureExtractor.from_pretrained("openai/clip-vit-base-patch32",
+        # ? wasn't previously necessary
+        feature_extractor = CLIPFeatureExtractor.from_pretrained(
+            "openai/clip-vit-base-patch32",
             cache_dir=MODEL_CACHE,
             torch_dtype=torch.float16,
             local_files_only=True,
