@@ -2,6 +2,7 @@ import os
 import time
 import sys
 import pathlib
+
 import subprocess
 from version import MODEL_CACHE, MODEL_ID, REVISION, SAFETY_MODEL_ID, SAFETY_REVISION
 
@@ -9,21 +10,15 @@ from version import MODEL_CACHE, MODEL_ID, REVISION, SAFETY_MODEL_ID, SAFETY_REV
 def logtime(msg: str) -> None:
     print(f"===TIME {time.time():.4f} {msg}===", file=sys.stderr)
 
+logtime("started")
+import nyacomp
+logtime("imported nyacomp")
 
 check = pathlib.Path("/tmp/predict-import")
 if not check.exists():
     check.touch()
 else:
     print("===!!!!!!predict has been imported again!!!!!!===")
-if os.getenv("PGET") or not pathlib.Path("/.dockerenv").exists():
-    url = f"https://storage.googleapis.com/replicate-weights/{os.environ['MODEL_FILE']}"
-    pget_proc = subprocess.Popen(
-        ["/usr/bin/pget", "-x", url, MODEL_CACHE], close_fds=True
-    )
-    logtime("pget launched")
-else:
-    pget_proc = None
-
 
 from typing import List
 
@@ -36,19 +31,19 @@ from cog import BasePredictor, Input, Path
 logtime("importing cog, importing diffusers")
 from diffusers import (
     StableDiffusionPipeline,
-    PNDMScheduler,
-    LMSDiscreteScheduler,
-    DDIMScheduler,
-    EulerDiscreteScheduler,
-    EulerAncestralDiscreteScheduler,
-    DPMSolverMultistepScheduler,
+    # PNDMScheduler,
+    # LMSDiscreteScheduler,
+    # DDIMScheduler,
+    # EulerDiscreteScheduler,
+    # EulerAncestralDiscreteScheduler,
+    # DPMSolverMultistepScheduler,
 )
-from diffusers.pipelines.stable_diffusion.safety_checker import (
-    StableDiffusionSafetyChecker,
-)
+# from diffusers.pipelines.stable_diffusion.safety_checker import (
+#     StableDiffusionSafetyChecker,
+# )
 
 logtime("imported diffusers, importing transformers")
-from transformers import CLIPFeatureExtractor
+#from transformers import CLIPFeatureExtractor
 
 def Input(default, **kwargs):
     return default
@@ -57,43 +52,11 @@ class Predictor(BasePredictor):
     def setup(self):
         """Load the model into memory to make running multiple predictions efficient"""
         print("Loading pipeline...")
-        logtime("predict setup")
-        if pget_proc:
-            pget_proc.wait()
-        else:
-            print("error!! no pget proc")
-        logtime("finished pget")
-        safety_checker = StableDiffusionSafetyChecker.from_pretrained(
-            SAFETY_MODEL_ID,
-            cache_dir=MODEL_CACHE,
-            local_files_only=True,
-            torch_dtype=torch.float16,
-            revision=SAFETY_REVISION,
-            use_safetensors=True,
-        )
-        logtime("loaded safety checker")
-        # ? wasn't previously necessary
-        feature_extractor = CLIPFeatureExtractor.from_pretrained(
-            "openai/clip-vit-base-patch32",
-            cache_dir=MODEL_CACHE,
-            torch_dtype=torch.float16,
-            local_files_only=True,
-            use_safetensors=True,
-        )
-        logtime("loaded feature extractor")
-        self.pipe = StableDiffusionPipeline.from_pretrained(
-            MODEL_ID,
-            safety_checker=safety_checker,
-            feature_extractor=feature_extractor,
-            revision=REVISION,
-            cache_dir=MODEL_CACHE,
-            local_files_only=True,
-            torch_dtype=torch.float16,
-            use_safetensors=True,
-        )
+        logtime("predict setup, loading pipe")
+        self.pipe = nyacomp.load_compressed(Path("model/boneless_sd.pth"))
         logtime("loaded pipe")
-        self.pipe = self.pipe.to("cuda")
-        logtime("moved pipe to cuda")
+
+
 
     @torch.inference_mode()
     def predict(
@@ -128,18 +91,18 @@ class Predictor(BasePredictor):
         guidance_scale: float = Input(
             description="Scale for classifier-free guidance", ge=1, le=20, default=7.5
         ),
-        scheduler: str = Input(
-            default="DPMSolverMultistep",
-            choices=[
-                "DDIM",
-                "K_EULER",
-                "DPMSolverMultistep",
-                "K_EULER_ANCESTRAL",
-                "PNDM",
-                "KLMS",
-            ],
-            description="Choose a scheduler.",
-        ),
+        # scheduler: str = Input(
+        #     default="DPMSolverMultistep",
+        #     choices=[
+        #         "DDIM",
+        #         "K_EULER",
+        #         "DPMSolverMultistep",
+        #         "K_EULER_ANCESTRAL",
+        #         "PNDM",
+        #         "KLMS",
+        #     ],
+        #     description="Choose a scheduler.",
+        # ),
         seed: int = Input(
             description="Random seed. Leave blank to randomize the seed", default=None
         ),
@@ -155,7 +118,7 @@ class Predictor(BasePredictor):
                 "Maximum size is 1024x768 or 768x1024 pixels, because of memory limits. Please select a lower width or height."
             )
 
-        self.pipe.scheduler = make_scheduler(scheduler, self.pipe.scheduler.config)
+        #self.pipe.scheduler = make_scheduler(scheduler, self.pipe.scheduler.config)
 
         generator = torch.Generator("cuda").manual_seed(seed)
         logtime("actually doing prediction")
@@ -174,8 +137,8 @@ class Predictor(BasePredictor):
 
         output_paths = []
         for i, sample in enumerate(output.images):
-            if output.nsfw_content_detected and output.nsfw_content_detected[i]:
-                continue
+            # if output.nsfw_content_detected and output.nsfw_content_detected[i]:
+            #     continue
 
             output_path = f"/tmp/out-{i}.png"
             sample.save(output_path)
@@ -190,12 +153,3 @@ class Predictor(BasePredictor):
         return output_paths
 
 
-def make_scheduler(name, config):
-    return {
-        "PNDM": PNDMScheduler.from_config(config),
-        "KLMS": LMSDiscreteScheduler.from_config(config),
-        "DDIM": DDIMScheduler.from_config(config),
-        "K_EULER": EulerDiscreteScheduler.from_config(config),
-        "K_EULER_ANCESTRAL": EulerAncestralDiscreteScheduler.from_config(config),
-        "DPMSolverMultistep": DPMSolverMultistepScheduler.from_config(config),
-    }[name]

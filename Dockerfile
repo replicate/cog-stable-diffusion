@@ -54,18 +54,18 @@ RUN ls /model
 FROM python:3.10-slim
 COPY --from=tini --link /sbin/tini /sbin/tini
 ENTRYPOINT ["/sbin/tini", "--"]
+COPY --from=model /model /src/model
 #COPY --from=model --link /src/diffusers-cache /src/diffusers-cache
 COPY --from=torch --link /dep/ /src/
 COPY --from=deps --link /dep/ /src/
 COPY --from=pget --link /pget /usr/bin/pget
 COPY --link ./cog-overwrite/http.py /src/cog/server/http.py
 COPY --link ./cog-overwrite/predictor.py /src/cog/predictor.py
-COPY --from=model --link /tmp/build /tmp/build
 ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/x86_64-linux-gnu:/usr/local/nvidia/lib64:/usr/local/nvidia/bin
 ENV PATH=$PATH:/usr/local/nvidia/bin
-ARG MODEL_FILE="sd-2.1-fp16-safetensors.tar"
-ARG GCP_TOKEN # patched 
-ENV MODEL_FILE=$MODEL_FILE
+#nyacomp 
+ENV PRELOAD_PATH=/src/model/nya/meta.csv
+#RUN sed -i 's:/tmp/::' model/nya/meta.csv
 RUN cp /usr/bin/echo /usr/local/bin/pip # prevent k8s from installing anything
 WORKDIR /src
 EXPOSE 5000
