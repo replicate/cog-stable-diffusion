@@ -5,9 +5,9 @@ import requests
 # poetry export --without-hashes > poetry-requirements.txt
 #requirements = open("poetry-requirements.txt").read().strip().split("\n")
 # poetry lock
-resp = requests.post("https://poetry-service.fly.dev", data=open("cog.yaml").read())
-#lock_data = toml.load("poetry.lock")
-lock_data = toml.load(resp.data())
+#resp = requests.post("https://poetry-service.fly.dev", data=open("cog.yaml").read())
+lock_data = toml.load("poetry.lock")
+#lock_data = toml.load(resp.data())
 
 packages = {p["name"].lower(): p for p in lock_data["package"]}
 
