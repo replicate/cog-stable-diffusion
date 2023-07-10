@@ -4,6 +4,9 @@ import sys
 import pathlib
 import subprocess
 from version import MODEL_CACHE, MODEL_ID, REVISION, SAFETY_MODEL_ID, SAFETY_REVISION
+from maybe_nvtx import annotate
+
+MODEL_FILE = os.environ["MODEL_FILE"]
 
 
 def logtime(msg: str) -> None:
@@ -16,10 +19,8 @@ if not check.exists():
 else:
     print("===!!!!!!predict has been imported again!!!!!!===")
 if os.getenv("PGET") or not pathlib.Path("/.dockerenv").exists():
-    url = f"https://storage.googleapis.com/replicate-weights/{os.environ['MODEL_FILE']}"
-    pget_proc = subprocess.Popen(
-        ["/usr/bin/pget", "-x", url, MODEL_CACHE], close_fds=True
-    )
+    url = f"https://storage.googleapis.com/replicate-weights/{MODEL_FILE}"
+    pget_proc = subprocess.Popen(["/usr/bin/pget", url, MODEL_FILE], close_fds=True)
     logtime("pget launched")
 else:
     pget_proc = None
@@ -33,7 +34,7 @@ import torch
 logtime("imported torch, importing cog")
 from cog import BasePredictor, Input, Path
 
-logtime("importing cog, importing diffusers")
+logtime("imported cog, importing diffusers")
 from diffusers import (
     StableDiffusionPipeline,
     PNDMScheduler,
@@ -50,10 +51,13 @@ from diffusers.pipelines.stable_diffusion.safety_checker import (
 logtime("imported diffusers, importing transformers")
 from transformers import CLIPFeatureExtractor
 
+
 def Input(default, **kwargs):
     return default
 
+
 class Predictor(BasePredictor):
+    @annotate("setup")
     def setup(self):
         """Load the model into memory to make running multiple predictions efficient"""
         print("Loading pipeline...")
@@ -62,39 +66,42 @@ class Predictor(BasePredictor):
             pget_proc.wait()
         else:
             print("error!! no pget proc")
-        logtime("finished pget")
-        safety_checker = StableDiffusionSafetyChecker.from_pretrained(
-            SAFETY_MODEL_ID,
-            cache_dir=MODEL_CACHE,
-            local_files_only=True,
-            torch_dtype=torch.float16,
-            revision=SAFETY_REVISION,
-            use_safetensors=True,
-        )
-        logtime("loaded safety checker")
-        # ? wasn't previously necessary
-        feature_extractor = CLIPFeatureExtractor.from_pretrained(
-            "openai/clip-vit-base-patch32",
-            cache_dir=MODEL_CACHE,
-            torch_dtype=torch.float16,
-            local_files_only=True,
-            use_safetensors=True,
-        )
-        logtime("loaded feature extractor")
-        self.pipe = StableDiffusionPipeline.from_pretrained(
-            MODEL_ID,
-            safety_checker=safety_checker,
-            feature_extractor=feature_extractor,
-            revision=REVISION,
-            cache_dir=MODEL_CACHE,
-            local_files_only=True,
-            torch_dtype=torch.float16,
-            use_safetensors=True,
-        )
-        logtime("loaded pipe")
-        self.pipe = self.pipe.to("cuda")
-        logtime("moved pipe to cuda")
+        logtime("finished waiting for pget, loading model")
+        # safety_checker = StableDiffusionSafetyChecker.from_pretrained(
+        #     SAFETY_MODEL_ID,
+        #     cache_dir=MODEL_CACHE,
+        #     local_files_only=True,
+        #     torch_dtype=torch.float16,
+        #     revision=SAFETY_REVISION,
+        #     use_safetensors=True,
+        # )
+        # logtime("loaded safety checker")
+        # # ? wasn't previously necessary
+        # feature_extractor = CLIPFeatureExtractor.from_pretrained(
+        #     "openai/clip-vit-base-patch32",
+        #     cache_dir=MODEL_CACHE,
+        #     torch_dtype=torch.float16,
+        #     local_files_only=True,
+        #     use_safetensors=True,
+        # )
+        # logtime("loaded feature extractor")
+        # self.pipe = StableDiffusionPipeline.from_pretrained(
+        #     MODEL_ID,
+        #     safety_checker=safety_checker,
+        #     feature_extractor=feature_extractor,
+        #     revision=REVISION,
+        #     cache_dir=MODEL_CACHE,
+        #     local_files_only=True,
+        #     torch_dtype=torch.float16,
+        #     use_safetensors=True,
+        # )
+        # logtime("loaded pipe")
+        # self.pipe = self.pipe.to("cuda")
+        # logtime("moved pipe to cuda")
+        self.pipe = torch.load(MODEL_FILE)
+        logtime("done loading model")
 
+    @annotate("predict")
     @torch.inference_mode()
     def predict(
         self,

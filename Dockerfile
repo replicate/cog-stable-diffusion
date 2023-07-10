@@ -6,7 +6,7 @@ RUN set -eux; \
   chmod +x /sbin/tini
 
 FROM appropriate/curl as pget
-ENV CACHEBURST=1
+ENV CACHEBURST=2
 #RUN https://github.com/replicate/pget/releases/download/v0.0.1/pget \
 RUN curl -sSL -o /pget r2-public-worker.drysys.workers.dev/pget \
   && chmod +x /pget
@@ -26,7 +26,7 @@ FROM python:3.11 as model
 WORKDIR /src
 COPY --from=torch /dep/ /src/
 RUN pip install -t /src diffusers transformers safetensors
-ARG MODEL_FILE="sd-2.1-fp16-safetensors.tar"
+ARG MODEL_FILE="sd-2.1-fp16.pth"
 ARG GCP_TOKEN # patched 
 ENV MODEL_FILE=$MODEL_FILE
 # you need (gcloud auth print-access-token)
@@ -60,4 +60,4 @@ RUN cp /usr/bin/echo /usr/local/bin/pip # prevent k8s from installing anything
 WORKDIR /src
 EXPOSE 5000
 CMD ["python", "-m", "cog.server.http"]
-COPY ./*py ./cog.yaml /src
+COPY ./*sh ./*py ./cog.yaml /src
