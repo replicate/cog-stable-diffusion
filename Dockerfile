@@ -1,3 +1,6 @@
+FROM scratch as timestop
+ADD --chmod=0755 https://r2-public-worker.drysys.workers.dev/timestop /timestop
+
 FROM appropriate/curl as tini
 ARG SOURCE_DATE_EPOCH=0
 RUN set -eux; \
@@ -18,10 +21,8 @@ FROM python:3.11-slim as torch
 WORKDIR /dep
 COPY ./torch-requirements.txt /requirements.txt
 RUN pip install -t /dep -r /requirements.txt --no-deps
-ARG SOURCE_DATE_EPOCH=0
-RUN find $( ls /dep | grep -E -v "^(dev|mnt|proc|sys)$" ) \
-  -newermt "@${SOURCE_DATE_EPOCH}" -writable -xdev \
-  | xargs touch --date="@${SOURCE_DATE_EPOCH}" --no-dereference
+COPY --from=timestop /timestop /bin/timestop
+RUN /bin/timestop /dep
 
 FROM python:3.11-slim as deps
 WORKDIR /dep
@@ -29,10 +30,9 @@ COPY ./other-requirements.txt /requirements.txt
 RUN pip install -t /dep -r /requirements.txt --no-deps
 COPY .cog/tmp/*/cog-0.0.1.dev-py3-none-any.whl /tmp/cog-0.0.1.dev-py3-none-any.whl
 RUN pip install -t /dep /tmp/cog-0.0.1.dev-py3-none-any.whl --no-deps
-ARG SOURCE_DATE_EPOCH=0
-RUN find $( ls /dep | grep -E -v "^(dev|mnt|proc|sys)$" ) \
-  -newermt "@${SOURCE_DATE_EPOCH}" -writable -xdev \
-  | xargs touch --date="@${SOURCE_DATE_EPOCH}" --no-dereference
+COPY --from=timestop /timestop /bin/timestop
+RUN /bin/timestop /dep
+
 
 # FROM python:3.11 as model
 # WORKDIR /src
