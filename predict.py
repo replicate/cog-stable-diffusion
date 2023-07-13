@@ -5,13 +5,14 @@ import pathlib
 
 import subprocess
 from version import MODEL_CACHE, MODEL_ID, REVISION, SAFETY_MODEL_ID, SAFETY_REVISION
-
+from maybe_nvtx import annotate
 
 def logtime(msg: str) -> None:
     print(f"===TIME {time.time():.4f} {msg}===", file=sys.stderr)
 
 logtime("started")
-import nyacomp
+with annotate("import nyacomp"):
+    import nyacomp
 logtime("imported nyacomp")
 
 check = pathlib.Path("/tmp/predict-import")
@@ -23,7 +24,8 @@ else:
 from typing import List
 
 logtime("importing torch")
-import torch
+with annotate("import torch"):
+    import torch
 
 logtime("imported torch, importing cog")
 from cog import BasePredictor, Input, Path
@@ -49,6 +51,7 @@ def Input(default, **kwargs):
     return default
 
 class Predictor(BasePredictor):
+    @annotate("predict")
     def setup(self):
         """Load the model into memory to make running multiple predictions efficient"""
         print("Loading pipeline...")
@@ -57,7 +60,7 @@ class Predictor(BasePredictor):
         logtime("loaded pipe")
 
 
-
+    @annotate("predict")
     @torch.inference_mode()
     def predict(
         self,
