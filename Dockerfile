@@ -12,25 +12,22 @@ RUN set -eux; \
 #   && chmod +x /pget \
 #   && touch --date="@${SOURCE_DATE_EPOCH}" /pget
 
-FROM appropriate/curl as pget
+FROM appropriate/curl as model
 RUN curl -sSL -o nya.tar r2-public-worker.drysys.workers.dev/nya-sd-8-threads-2023-07-13.tar
 RUN tar -xf nya.tar -C /
 
-FROM python:3.11-slim as torch
+FROM python:3.10-slim as torch
 WORKDIR /dep
 COPY ./torch-requirements.txt /requirements.txt
 RUN pip install -t /dep -r /requirements.txt --no-deps
-COPY --from=timestop /timestop /bin/timestop
-RUN /bin/timestop /dep
 
-FROM python:3.11-slim as deps
+FROM python:3.10-slim as deps
 WORKDIR /dep
 COPY ./other-requirements.txt /requirements.txt
 RUN pip install -t /dep -r /requirements.txt --no-deps
 COPY .cog/tmp/*/cog-0.0.1.dev-py3-none-any.whl /tmp/cog-0.0.1.dev-py3-none-any.whl
 RUN pip install -t /dep /tmp/cog-0.0.1.dev-py3-none-any.whl --no-deps
-COPY --from=timestop /timestop /bin/timestop
-RUN /bin/timestop /dep
+RUN pip install -t /dep https://r2-public-worker.drysys.workers.dev/nyacomp-0.0.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
 
 
 # FROM python:3.11 as model
@@ -52,12 +49,12 @@ RUN /bin/timestop /dep
 # subprocess.run(["tar", "--create", "--file", fname, MODEL_CACHE], shell=True)
 # subprocess.run(["curl", "-v", "-T", fname, "-H", f"Authorization: Bearer {TOKEN}", f"https://storage.googleapis.com/replicate-weights/{fname}"])
 
-FROM python:3.11-slim
+FROM python:3.10-slim
 COPY --from=tini --link /sbin/tini /sbin/tini
 ENTRYPOINT ["/sbin/tini", "--"]
 #COPY --from=model --link /src/diffusers-cache /src/diffusers-cache
 COPY --from=torch --link /dep/ /src/
-COPY --from=model --link /model /app/model
+COPY --from=model --link /model /src/model
 COPY --from=deps --link /dep/ /src/
 #COPY --from=pget --link /pget /usr/bin/pget
 COPY --link ./cog-overwrite/http.py /src/cog/server/http.py
@@ -65,6 +62,9 @@ COPY --link ./cog-overwrite/predictor.py /src/cog/predictor.py
 #COPY --from=model --link /tmp/build /tmp/build
 ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/x86_64-linux-gnu:/usr/local/nvidia/lib64:/usr/local/nvidia/bin
 ENV PATH=$PATH:/usr/local/nvidia/bin
+ENV PRELOAD_PATH=/src/model/nya/meta.csv
+ENV NUM_THREADS=8
+ENV NUM_STREAMS=24
 # ARG MODEL_FILE="sd-2.1-fp16.pth"
 # ARG GCP_TOKEN # patched 
 # ENV MODEL_FILE=$MODEL_FILE

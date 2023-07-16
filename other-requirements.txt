@@ -5,7 +5,7 @@ charset-normalizer==3.2.0
 click==8.1.4
 cog==0.8.0
 colorama==0.4.6
-diffusers==0.18.1
+diffusers==0.10.2
 exceptiongroup==1.1.2
 fastapi==0.100.0
 filelock==3.12.2
