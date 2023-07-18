@@ -55,28 +55,50 @@ FROM python:3.11-slim
 COPY --from=tini --link /sbin/tini /sbin/tini
 ENTRYPOINT ["/sbin/tini", "--"]
 
+# for torch compiled from v2.0.1 tag like we did, we need to provide
+#        libgomp.so.1 => not found
+#        libcupti.so.11.8 => not found
+#        libcudart.so.11.0 => not found
+#        libcudart.so.11.0 => not found
+#        libcusparse.so.11 => not found
+#        libcurand.so.10 => not found
+#        libnvToolsExt.so.1 => not found
+#        libcufft.so.10 => not found
+#        libcublas.so.11 => not found
+#        libcublasLt.so.11 => not found
+#        libcudart.so.11.0 => not found
+
+# libgomp, libcupti, libcudart, libcudart, libcusparse, libcurand, libnvToolsExt, libcufft, libcublas, libcublasLt, libcudart
+
+
+
+
+
+
+
     # echo "deb https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64 /" > /etc/apt/sources.list.d/nvidia-ml.list && \
-RUN apt update && apt install -y --no-install-recommends gnupg2 curl ca-certificates \
-    && curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub | apt-key add - \
-    && echo "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64 /" > /etc/apt/sources.list.d/cuda.list \
-    && apt update && apt install -y --no-install-recommends \
-        cuda-cudart-11.8 \
-        cuda-nvrtc-11.8 \
-        libcublas-11.8 \
-        # libcufft-11.8 \
-        libcurand-11.8 \
-        # libcusolver-11.8 \
-        libcusparse-11.8 \
-        cuda-compat-11.8 \
-        # cuda-nvtx-11.8 \
-        libgomp1 \
-    && ln -s cuda-11.8 /usr/local/cuda \
-    && apt-get purge --autoremove -y curl \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* .cache/ \
-    && rm /usr/local/cuda/targets/x86_64-linux/lib/libcusolverMg.so* \
-    && echo "/usr/local/nvidia/lib" >> /etc/ld.so.conf.d/nvidia.conf \
-    && echo "/usr/local/nvidia/lib64" >> /etc/ld.so.conf.d/nvidia.conf
+# RUN apt update && apt install -y --no-install-recommends gnupg2 curl ca-certificates \
+#     && curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub | apt-key add - \
+#     && echo "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64 /" > /etc/apt/sources.list.d/cuda.list \
+#     && apt update 
+# && apt install -y --no-install-recommends \
+#         cuda-cudart-11.8 \
+#         cuda-nvrtc-11.8 \
+#         libcublas-11.8 \
+#         # libcufft-11.8 \
+#         libcurand-11.8 \
+#         # libcusolver-11.8 \
+#         libcusparse-11.8 \
+#         cuda-compat-11.8 \
+#         # cuda-nvtx-11.8 \
+#         libgomp1 \
+#     && ln -s cuda-11.8 /usr/local/cuda \
+#     && apt-get purge --autoremove -y curl \
+#     && apt-get clean \
+#     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* .cache/ \
+#     && rm /usr/local/cuda/targets/x86_64-linux/lib/libcusolverMg.so* \
+#     && echo "/usr/local/nvidia/lib" >> /etc/ld.so.conf.d/nvidia.conf \
+#     && echo "/usr/local/nvidia/lib64" >> /etc/ld.so.conf.d/nvidia.conf
 #COPY --from=model --link /src/diffusers-cache /src/diffusers-cache
 COPY --from=torch --link /dep/torch /src/torch
 COPY --from=torch-deps --link /dep/ /src/
