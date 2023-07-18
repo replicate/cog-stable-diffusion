@@ -30,8 +30,6 @@ COPY ./other-requirements.txt /requirements.txt
 RUN pip install -t /dep -r /requirements.txt --no-deps
 COPY .cog/tmp/*/cog-0.0.1.dev-py3-none-any.whl /tmp/cog-0.0.1.dev-py3-none-any.whl
 RUN pip install -t /dep /tmp/cog-0.0.1.dev-py3-none-any.whl --no-deps
-COPY --from=timestop /timestop /bin/timestop
-RUN /bin/timestop /dep
 
 
 # FROM python:3.11 as model
@@ -56,45 +54,32 @@ RUN /bin/timestop /dep
 FROM python:3.11-slim
 COPY --from=tini --link /sbin/tini /sbin/tini
 ENTRYPOINT ["/sbin/tini", "--"]
-RUN apt-get update && apt-get install -y --no-install-recommends \
-python3-setuptools \
-python3-pip \
-python3-dev \
-python3-venv \
-git \
-&& \
 
-RUN apt update && apt install -y --no-install-recommends gnupg2 curl ca-certificates && \
-    curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub | apt-key add - && \
-    echo "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64 /" > /etc/apt/sources.list.d/cuda.list && \
     # echo "deb https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64 /" > /etc/apt/sources.list.d/nvidia-ml.list && \
-
-apt update && apt install -y --no-install-recommends \
-    cuda-cudart-11-0 \
-    cuda-nvrtc-11-0 \
-    libcublas-11-0 \
-    libcufft-11-0 \
-    libcurand-11-0 \
-    libcusolver-11-0 \
-    libcusparse-11-0 \
-    cuda-compat-11-0 \
-    cuda-nvtx-11-0 \
-    libgomp1 \
-    && ln -s cuda-11.0 /usr/local/cuda && \
-    apt-get purge --autoremove -y curl && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* .cache/ && \
-    rm /usr/local/cuda/targets/x86_64-linux/lib/libcusolverMg.so*
-
-    echo "/usr/local/nvidia/lib" >> /etc/ld.so.conf.d/nvidia.conf \
+RUN apt update && apt install -y --no-install-recommends gnupg2 curl ca-certificates \
+    && curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub | apt-key add - \
+    && echo "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64 /" > /etc/apt/sources.list.d/cuda.list \
+    && apt update && apt install -y --no-install-recommends \
+        cuda-cudart-11.8 \
+        cuda-nvrtc-11.8 \
+        libcublas-11.8 \
+        # libcufft-11.8 \
+        libcurand-11.8 \
+        # libcusolver-11.8 \
+        libcusparse-11.8 \
+        cuda-compat-11.8 \
+        # cuda-nvtx-11.8 \
+        libgomp1 \
+    && ln -s cuda-11.8 /usr/local/cuda \
+    && apt-get purge --autoremove -y curl \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* .cache/ \
+    && rm /usr/local/cuda/targets/x86_64-linux/lib/libcusolverMg.so* \
+    && echo "/usr/local/nvidia/lib" >> /etc/ld.so.conf.d/nvidia.conf \
     && echo "/usr/local/nvidia/lib64" >> /etc/ld.so.conf.d/nvidia.conf
-
-ENV PATH /usr/local/nvidia/bin:/usr/local/cuda/bin:${PATH}
-ENV LD_LIBRARY_PATH /usr/local/nvidia/lib:/usr/local/nvidia/lib64
-
 #COPY --from=model --link /src/diffusers-cache /src/diffusers-cache
-COPY --from=torch-deps --link /dep/ /src/
 COPY --from=torch --link /dep/torch /src/torch
+COPY --from=torch-deps --link /dep/ /src/
 COPY --from=deps --link /dep/ /src/
 COPY --from=pget --link /pget /usr/bin/pget
 COPY --link ./cog-overwrite/http.py /src/cog/server/http.py
