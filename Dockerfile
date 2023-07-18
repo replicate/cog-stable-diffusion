@@ -13,7 +13,7 @@ RUN set -eux; \
 #   && touch --date="@${SOURCE_DATE_EPOCH}" /pget
 
 FROM appropriate/curl as model
-RUN curl -sSL -o nya.tar nya-sd-10-threads-2023-07-16.tar 
+RUN curl -sSL -o nya.tar https://r2-public-worker.drysys.workers.dev/nya-sd-10-threads-2023-07-16.tar 
 RUN tar -xf nya.tar -C /
 
 FROM python:3.11-slim as torch
