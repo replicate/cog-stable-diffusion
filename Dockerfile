@@ -1,6 +1,3 @@
-FROM scratch as timestop
-ADD --chmod=0755 https://r2-public-worker.drysys.workers.dev/timestop /timestop
-
 FROM appropriate/curl as tini
 ARG SOURCE_DATE_EPOCH=0
 RUN set -eux; \
@@ -17,12 +14,15 @@ RUN curl -sSL -o /pget r2-public-worker.drysys.workers.dev/pget \
   && chmod +x /pget \
   && touch --date="@${SOURCE_DATE_EPOCH}" /pget
 
-FROM python:3.11-slim as torch
+FROM python:3.11-slim as torch-deps
 WORKDIR /dep
 COPY ./torch-requirements.txt /requirements.txt
 RUN pip install -t /dep -r /requirements.txt --no-deps
-COPY --from=timestop /timestop /bin/timestop
-RUN /bin/timestop /dep
+
+FROM appropriate/curl as torch
+WORKDIR /dep
+COPY torch-2.0.0a0+gite9ebda2-cp311-cp311-linux_x86_64.whl /dep
+RUN unzip torch-2.0.0a0+gite9ebda2-cp311-cp311-linux_x86_64.whl
 
 FROM python:3.11-slim as deps
 WORKDIR /dep
@@ -56,8 +56,45 @@ RUN /bin/timestop /dep
 FROM python:3.11-slim
 COPY --from=tini --link /sbin/tini /sbin/tini
 ENTRYPOINT ["/sbin/tini", "--"]
+RUN apt-get update && apt-get install -y --no-install-recommends \
+python3-setuptools \
+python3-pip \
+python3-dev \
+python3-venv \
+git \
+&& \
+
+RUN apt update && apt install -y --no-install-recommends gnupg2 curl ca-certificates && \
+    curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub | apt-key add - && \
+    echo "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64 /" > /etc/apt/sources.list.d/cuda.list && \
+    # echo "deb https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64 /" > /etc/apt/sources.list.d/nvidia-ml.list && \
+
+apt update && apt install -y --no-install-recommends \
+    cuda-cudart-11-0 \
+    cuda-nvrtc-11-0 \
+    libcublas-11-0 \
+    libcufft-11-0 \
+    libcurand-11-0 \
+    libcusolver-11-0 \
+    libcusparse-11-0 \
+    cuda-compat-11-0 \
+    cuda-nvtx-11-0 \
+    libgomp1 \
+    && ln -s cuda-11.0 /usr/local/cuda && \
+    apt-get purge --autoremove -y curl && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* .cache/ && \
+    rm /usr/local/cuda/targets/x86_64-linux/lib/libcusolverMg.so*
+
+    echo "/usr/local/nvidia/lib" >> /etc/ld.so.conf.d/nvidia.conf \
+    && echo "/usr/local/nvidia/lib64" >> /etc/ld.so.conf.d/nvidia.conf
+
+ENV PATH /usr/local/nvidia/bin:/usr/local/cuda/bin:${PATH}
+ENV LD_LIBRARY_PATH /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+
 #COPY --from=model --link /src/diffusers-cache /src/diffusers-cache
-COPY --from=torch --link /dep/ /src/
+COPY --from=torch-deps --link /dep/ /src/
+COPY --from=torch --link /dep/torch /src/torch
 COPY --from=deps --link /dep/ /src/
 COPY --from=pget --link /pget /usr/bin/pget
 COPY --link ./cog-overwrite/http.py /src/cog/server/http.py
