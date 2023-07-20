@@ -32,7 +32,8 @@ logtime("importing torch")
 import torch
 
 logtime("imported torch, importing cog")
-from cog import BasePredictor, Input, Path
+from cog.predictor import BasePredictor
+from cog.types import Input, Path
 
 logtime("imported cog, importing diffusers")
 from diffusers import (

@@ -1,3 +1,14 @@
+import time
+import sys
+
+
+def logtime(msg: str) -> None:
+    print(f"===TIME {time.time():.4f} {msg}===", file=sys.stderr)
+
+
+logtime("top of predictor.py")
+
+
 import enum
 import importlib.util
 import inspect
@@ -19,7 +30,6 @@ from typing import (
     get_origin,
 )
 
-import yaml
 from pydantic import BaseModel, Field, create_model
 from pydantic.fields import FieldInfo
 
@@ -127,8 +137,11 @@ def load_config() -> Dict[str, Any]:
     """
     Reads cog.yaml and returns it as a dict.
     """
+    import yaml
+
     # Assumes the working directory is /src
     config_path = os.path.abspath("cog.yaml")
+
     try:
         with open(config_path) as fh:
             config = yaml.safe_load(fh)
@@ -159,9 +172,11 @@ def get_predictor_ref(config: Dict[str, Any], mode: str = "predict") -> str:
 
     return config[mode]
 
+
 # we're overwriting to replace this
 # module_from_spec does not set sys.modules, causing predict.py to be evaluated twice
 # importlib.import_module does not have this problem
+
 
 def load_predictor_from_ref(ref: str) -> BasePredictor:
     module_path, class_name = ref.split(":", 1)

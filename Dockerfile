@@ -33,8 +33,8 @@ FROM python:3.11-slim as deps
 WORKDIR /dep
 COPY ./other-requirements.txt /requirements.txt
 RUN pip install -t /dep -r /requirements.txt --no-deps
-COPY .cog/tmp/*/cog-0.0.1.dev-py3-none-any.whl /tmp/cog-0.0.1.dev-py3-none-any.whl
-RUN pip install -t /dep /tmp/cog-0.0.1.dev-py3-none-any.whl --no-deps
+# COPY .cog/tmp/*/cog-0.0.1.dev-py3-none-any.whl /tmp/cog-0.0.1.dev-py3-none-any.whl
+RUN pip install -t /dep cog==0.8.1 --no-deps
 
 # FROM python:3.11 as model
 # WORKDIR /src
@@ -105,8 +105,7 @@ COPY --from=torch --link /dep/torch-2.0.0a0+gite9ebda2.dist-info/ /src/torch-2.0
 COPY --from=torch-deps --link /dep/ /src/
 COPY --from=deps --link /dep/ /src/
 COPY --from=pget --link /pget /usr/bin/pget
-COPY --link ./cog-overwrite/http.py /src/cog/server/http.py
-COPY --link ./cog-overwrite/predictor.py /src/cog/predictor.py
+COPY --link ./cog-overwrite/ /src/cog/
 
 #COPY --from=model --link /tmp/build /tmp/build
 ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/x86_64-linux-gnu:/usr/local/nvidia/lib64:/usr/local/nvidia/bin:/usr/local/cuda/lib64
