@@ -26,6 +26,8 @@ WORKDIR /dep
 COPY torch-2.0.0a0+gite9ebda2-cp311-cp311-linux_x86_64.whl /dep
 RUN unzip torch-2.0.0a0+gite9ebda2-cp311-cp311-linux_x86_64.whl
 RUN apk update && apk add patchelf && patchelf --remove-needed libcurand.so.10 torch/lib/libtorch_cuda.so && patchelf --remove-needed libcurand.so.10 torch/lib/libtorch_global_deps.so
+# RUN patchelf --remove-needed libcufft.so.10 torch/lib/libtorch_cuda.so && patchelf --remove-needed libcusparse.so.11 torch/lib/libtorch_cuda.so \
+#  && patchelf --remove-needed libcufft.so.10 torch/lib/libtorch_global_deps.so && patchelf --remove-needed libcusparse.so.11 torch/lib/libtorch_global_deps.so
 
 FROM python:3.11-slim as deps
 WORKDIR /dep
@@ -93,9 +95,9 @@ COPY --from=cuda --link \
  /usr/local/cuda/lib64/libnvToolsExt.so.1 \
  /usr/local/cuda/lib64/libnvrtc.so* \
  /usr/local/cuda/lib64/libcufft.so.10 \
- /usr/local/cuda/lib64/libcupti.so.11.8 \
- # /usr/local/cuda/lib64/libcurand.so.10 \
  /usr/local/cuda/lib64/libcusparse.so.11 \
+ # /usr/local/cuda/lib64/libcupti.so.11.8 \
+ # /usr/local/cuda/lib64/libcurand.so.10 \
  /usr/local/cuda/lib64
 COPY --from=cuda --link /usr/lib/x86_64-linux-gnu/libgomp.so.1* /usr/lib/x86_64-linux-gnu
 COPY --from=torch --link /dep/torch/ /src/torch/
