@@ -20,6 +20,8 @@ FROM python:3.11-slim as torch-deps
 WORKDIR /dep
 COPY ./torch-requirements.txt /requirements.txt
 RUN pip install -t /dep -r /requirements.txt --no-deps
+# COPY ./nyacomp-0.0.2-cp311-cp311-linux_x86_64.whl /nyacomp-0.0.2-cp311-cp311-linux_x86_64.whl 
+# RUN pip install -t /dep /nyacomp-0.0.2-cp311-cp311-linux_x86_64.whl 
 
 FROM appropriate/curl as torch
 WORKDIR /dep
@@ -93,7 +95,7 @@ COPY --from=cuda --link \
  /usr/local/cuda/lib64/libcublasLt.so.11 \
  /usr/local/cuda/lib64/libcudart.so.11.0 \
  /usr/local/cuda/lib64/libnvToolsExt.so.1 \
- /usr/local/cuda/lib64/libnvrtc.so* \
+ # /usr/local/cuda/lib64/libnvrtc.so* \
  /usr/local/cuda/lib64/libcufft.so.10 \
  /usr/local/cuda/lib64/libcusparse.so.11 \
  # /usr/local/cuda/lib64/libcupti.so.11.8 \
