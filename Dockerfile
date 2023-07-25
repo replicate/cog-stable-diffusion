@@ -20,8 +20,8 @@ FROM python:3.11-slim as torch-deps
 WORKDIR /dep
 COPY ./torch-requirements.txt /requirements.txt
 RUN pip install -t /dep -r /requirements.txt --no-deps
-# COPY ./nyacomp-0.0.2-cp311-cp311-linux_x86_64.whl /nyacomp-0.0.2-cp311-cp311-linux_x86_64.whl 
-# RUN pip install -t /dep /nyacomp-0.0.2-cp311-cp311-linux_x86_64.whl 
+COPY ./nyacomp-0.0.2-cp311-cp311-linux_x86_64.whl /nyacomp-0.0.2-cp311-cp311-linux_x86_64.whl 
+RUN pip install -t /dep /nyacomp-0.0.2-cp311-cp311-linux_x86_64.whl 
 
 FROM appropriate/curl as torch
 WORKDIR /dep
