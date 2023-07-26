@@ -9,12 +9,12 @@ RUN set -eux; \
   chmod +x /sbin/tini; \
   touch --date="@${SOURCE_DATE_EPOCH}" /sbin/tini
 
-FROM appropriate/curl as pget
-ARG SOURCE_DATE_EPOCH=0
-#RUN https://github.com/replicate/pget/releases/download/v0.0.1/pget \
-RUN curl -sSL -o /pget r2-public-worker.drysys.workers.dev/pget \
-  && chmod +x /pget \
-  && touch --date="@${SOURCE_DATE_EPOCH}" /pget
+# FROM appropriate/curl as pget
+# ARG SOURCE_DATE_EPOCH=0
+# #RUN https://github.com/replicate/pget/releases/download/v0.0.1/pget \
+# RUN curl -sSL -o /pget r2-public-worker.drysys.workers.dev/pget \
+#   && chmod +x /pget \
+#   && touch --date="@${SOURCE_DATE_EPOCH}" /pget
 
 FROM python:3.11-slim as torch-deps
 WORKDIR /dep
@@ -63,7 +63,7 @@ COPY --from=torch --link /dep/torch/ /src/torch/
 COPY --from=torch --link /dep/torch-2.0.0a0+gite9ebda2.dist-info/ /src/torch-2.0.0a0+gite9ebda2.dist-info/
 COPY --from=torch-deps --link /dep/ /src/
 COPY --from=deps --link /dep/ /src/
-COPY --from=pget --link /pget /usr/bin/pget
+# COPY --from=pget --link /pget /usr/bin/pget
 COPY --link ./cog-overwrite/ /src/cog/
 
 #COPY --from=model --link /tmp/build /tmp/build
