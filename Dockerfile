@@ -20,7 +20,8 @@ FROM python:3.11-slim as torch-deps
 WORKDIR /dep
 COPY ./torch-requirements.txt /requirements.txt
 RUN pip install -t /dep -r /requirements.txt --no-deps
-RUN pip install -t /dep https://r2-public-worker.drysys.workers.dev/nyacomp-0.0.2-cp311-cp311-linux_x86_64.whl 
+ENV A=1
+RUN pip install -t /dep https://r2.drysys.workers.dev/nyacomp-0.0.4-cp311-cp311-linux_x86_64.whl 
 
 FROM appropriate/curl as torch
 WORKDIR /dep
@@ -38,7 +39,7 @@ RUN pip install -t /dep -r /requirements.txt --no-deps
 RUN pip install -t /dep cog==0.8.1 --no-deps
 
 FROM appropriate/curl as model
-RUN curl -sSL -o nya.tar https://r2-public-worker.drysys.workers.dev/nya-sd-10-threads-2023-07-25.tar 
+RUN curl -sSL -o nya.tar https://r2.drysys.workers.dev/nya-sd-meta-2023-08-06.tar
 RUN tar -xf nya.tar -C /
 
 FROM python:3.11-slim
@@ -63,15 +64,20 @@ COPY --from=torch --link /dep/torch/ /src/torch/
 COPY --from=torch --link /dep/torch-2.0.0a0+gite9ebda2.dist-info/ /src/torch-2.0.0a0+gite9ebda2.dist-info/
 COPY --from=torch-deps --link /dep/ /src/
 COPY --from=deps --link /dep/ /src/
-# COPY --from=pget --link /pget /usr/bin/pget
 COPY --link ./cog-overwrite/ /src/cog/
 
-#COPY --from=model --link /tmp/build /tmp/build
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
 ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/x86_64-linux-gnu:/usr/local/nvidia/lib64:/usr/local/nvidia/bin:/usr/local/cuda/lib64
 ENV PATH=$PATH:/usr/local/nvidia/bin
 ENV PRELOAD_PATH=/src/model/nya/meta.csv
 ENV NUM_THREADS=10
 ENV NUM_STREAMS=40
+ENV DOWNLOAD=1
 RUN ln -s --force /usr/bin/echo /usr/local/bin/pip # prevent k8s from installing anything
 WORKDIR /src
 EXPOSE 5000
