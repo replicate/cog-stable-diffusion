@@ -1,3 +1,5 @@
 .cog/
 __pycache__/
 diffusers-cache/
+*.ipynb
+*.png
