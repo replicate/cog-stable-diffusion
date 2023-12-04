@@ -11,5 +11,5 @@ cog predict -i prompt="monkey scuba diving"
 
 Run HTTP API for making predictions:
 ```bash
-cog run -p 5000 python -m cog.server.http
+cog run -p 5000
 ```
