@@ -11,4 +11,7 @@ build:
     - "accelerate==0.15.0"
     - "huggingface-hub==0.13.2"
 
+  run:
+    - curl -o /usr/local/bin/pget -L "https://github.com/replicate/pget/releases/download/v0.3.0/pget" && chmod +x /usr/local/bin/pget
+
 predict: "predict.py:Predictor"
