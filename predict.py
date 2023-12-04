@@ -4,17 +4,18 @@ from typing import List
 import torch
 from cog import BasePredictor, Input, Path
 from diffusers import (
-    StableDiffusionPipeline,
-    PNDMScheduler,
-    LMSDiscreteScheduler,
     DDIMScheduler,
-    EulerDiscreteScheduler,
-    EulerAncestralDiscreteScheduler,
     DPMSolverMultistepScheduler,
+    EulerAncestralDiscreteScheduler,
+    EulerDiscreteScheduler,
+    LMSDiscreteScheduler,
+    PNDMScheduler,
+    StableDiffusionPipeline,
 )
 from diffusers.pipelines.stable_diffusion.safety_checker import (
     StableDiffusionSafetyChecker,
 )
+
 from weights_downloader import WeightsDownloader
 
 # MODEL_ID refers to a diffusers-compatible model on HuggingFace
@@ -25,14 +26,16 @@ SD_MODEL_CACHE = os.path.join(MODEL_CACHE, "models--stabilityai--stable-diffusio
 MODEL_ID = "stabilityai/stable-diffusion-2-1"
 SD_URL = "https://weights.replicate.delivery/default/stable-diffusion/stable-diffusion-2-1.tar"
 
-SAFETY_CACHE = os.path.join(MODEL_CACHE, "models--CompVis--stable-diffusion-safety-checker")
+SAFETY_CACHE = os.path.join(
+    MODEL_CACHE, "models--CompVis--stable-diffusion-safety-checker"
+)
 SAFETY_MODEL_ID = "CompVis/stable-diffusion-safety-checker"
 SAFETY_URL = "https://weights.replicate.delivery/default/stable-diffusion/stable-diffusion-safety-checker.tar"
+
 
 class Predictor(BasePredictor):
     def setup(self):
         """Load the model into memory to make running multiple predictions efficient"""
-
 
         print("Loading pipeline...")
         WeightsDownloader.download_if_not_exists(SAFETY_URL, SAFETY_CACHE)
